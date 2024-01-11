@@ -5,12 +5,14 @@ mod food;
 mod gamefield_ui;
 mod gametimer;
 mod gizmodable;
+mod larva;
 mod menu_ui;
 mod playerinput;
 mod scentmap;
+mod spatial_helper;
 mod spawner;
+mod ui_helpers;
 mod upgrades;
-mod buildables;
 
 use std::time::Duration;
 
@@ -23,14 +25,14 @@ use bevy::{
 use bevy_inspector_egui::quick::*;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::*;
-use bevy_spatial::{kdtree::KDTree2, SpatialAccess};
+use bevy_spatial::kdtree::KDTree2;
 use bevy_spatial::{AutomaticUpdate, SpatialStructure};
-use buildables::BuildablePlugin;
 use colony::ColonyPlugin;
 use food::FoodPlugin;
 use gamefield_ui::GamefieldUI;
 use gametimer::GameTimerPlugin;
-use gizmodable::Gizmodable;
+use gizmodable::Gizmotastic;
+use larva::LarvaPlugin;
 use menu_ui::MainMenuUI;
 use playerinput::PlayerInputPlugin;
 use scentmap::ScentMapPlugin;
@@ -64,21 +66,27 @@ fn main() {
         )
         .add_plugins((MainMenuUI, GameTimerPlugin, PlayerInputPlugin))
         .add_plugins((
-            Gizmodable,
+            Gizmotastic,
             ColonyPlugin,
+            LarvaPlugin,
             AntPlugin,
             UpgradePlugin,
             ScentMapPlugin,
             FoodPlugin,
             SpawnerPlugin,
-            BuildablePlugin,
-            GamefieldUI
+            GamefieldUI,
         ))
         .add_event::<SoundScape>()
         .add_systems(Startup, setup)
-        .add_systems(OnEnter(UIFocus::Gamefield), (start_sim,play_music.run_if(run_once())))
+        .add_systems(
+            OnEnter(UIFocus::Gamefield),
+            (start_sim, play_music.run_if(run_once())),
+        )
         .add_systems(OnEnter(UIFocus::MainMenu), pause_sim)
-        .add_systems(Update, soundscape_processor.run_if(in_state(UIFocus::Gamefield)))
+        .add_systems(
+            Update,
+            soundscape_processor.run_if(in_state(UIFocus::Gamefield)),
+        )
         .run();
 }
 #[derive(Component, Default)]
@@ -103,7 +111,7 @@ pub enum SoundScape {
     AntDeath,
     FoodSpawn,
     FoodEmpty,
-    AntBorn
+    AntBorn,
 }
 
 #[derive(Component)]
@@ -112,8 +120,7 @@ pub struct MainCamera;
 #[derive(Component)]
 pub struct MainMusicTrack;
 
-fn setup(mut commands: Commands, mut q : Query<&mut Window, With<PrimaryWindow>>) {
-
+fn setup(mut commands: Commands, mut q: Query<&mut Window, With<PrimaryWindow>>) {
     let mut camera = Camera2dBundle::default();
     camera.projection.scaling_mode = ScalingMode::AutoMin {
         min_width: 800.0,
@@ -128,7 +135,6 @@ fn setup(mut commands: Commands, mut q : Query<&mut Window, With<PrimaryWindow>>
     commands.spawn((camera, MainCamera));
     let mut win = q.single_mut();
     win.set_maximized(true);
-
 }
 
 fn start_sim(mut sim_state: ResMut<NextState<SimState>>) {
@@ -137,21 +143,20 @@ fn start_sim(mut sim_state: ResMut<NextState<SimState>>) {
 fn pause_sim(mut sim_state: ResMut<NextState<SimState>>) {
     sim_state.set(SimState::Paused);
 }
-fn play_music(mut commands: Commands,
-    assets: Res<AssetServer>,) {
-        commands.spawn((
-            AudioBundle {
-                source: assets.load("Limit 70.mp3"),
-                settings: PlaybackSettings {
-                    mode: bevy::audio::PlaybackMode::Loop,
-                    volume: bevy::audio::Volume::Relative(VolumeLevel::new(0.2f32)),
-                    ..default()
-                },
+fn play_music(mut commands: Commands, assets: Res<AssetServer>) {
+    commands.spawn((
+        AudioBundle {
+            source: assets.load("Limit 70.mp3"),
+            settings: PlaybackSettings {
+                mode: bevy::audio::PlaybackMode::Loop,
+                volume: bevy::audio::Volume::Relative(VolumeLevel::new(0.2f32)),
                 ..default()
             },
-            MainMusicTrack,
-        ));
-    }
+            ..default()
+        },
+        MainMusicTrack,
+    ));
+}
 
 fn soundscape_processor(
     mut commands: Commands,
@@ -163,20 +168,17 @@ fn soundscape_processor(
             SoundScape::AntBorn => "B_vib.wav",
             SoundScape::AntDeath => "Click.wav",
             SoundScape::FoodEmpty => "D_vib.wav",
-            SoundScape::FoodSpawn => "G_vib.wav"
+            SoundScape::FoodSpawn => "G_vib.wav",
         };
-        commands.spawn((
-            AudioBundle {
-                source: assets.load(asset_path),
-                settings: PlaybackSettings {
-                    mode: bevy::audio::PlaybackMode::Despawn,
-                    volume: bevy::audio::Volume::Relative(VolumeLevel::new(0.3f32)),
-                    ..default()
-                },
+        commands.spawn((AudioBundle {
+            source: assets.load(asset_path),
+            settings: PlaybackSettings {
+                mode: bevy::audio::PlaybackMode::Despawn,
+                volume: bevy::audio::Volume::Relative(VolumeLevel::new(0.3f32)),
                 ..default()
             },
-            
-        ));
+            ..default()
+        },));
     }
 }
 

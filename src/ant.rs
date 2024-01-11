@@ -1,11 +1,14 @@
 use std::{
     f32::consts::{PI, TAU},
-    time::Duration, iter::{FlatMap, FilterMap},
+    marker::PhantomData,
+    time::Duration,
 };
 
-use bevy::{math::Vec3Swizzles, ecs::query::{WorldQuery, ReadOnlyWorldQuery, ROQueryItem}};
-use bevy::{gizmos, prelude::*, render::camera, time::common_conditions::on_timer};
-use bevy_inspector_egui::egui::util::undoer::Settings;
+use bevy::{
+    ecs::{system::{Command, SystemState}, query::Has},
+    math::Vec3Swizzles,
+};
+use bevy::{prelude::*, time::common_conditions::on_timer};
 use bevy_rand::prelude::*;
 use bevy_spatial::SpatialAccess;
 use rand::prelude::*;
@@ -13,24 +16,44 @@ use rand::prelude::*;
 use bevy_prng::WyRand;
 
 use crate::{
-    colony::{AntPopulation, Colony},
+    colony::{AntCapacity, AntPopulation, Colony, LaborData, LaborPhase},
     food::{FoodDeltaEvent, FoodQuant},
-    gametimer::{scaled_time, GameClock, SimTimer, TickRate},
-    gizmodable::VisualDebug,
-    main,
+    gametimer::{scaled_time, SimTimer, TickRate},
+    gizmodable::{GizmoDrawOp, GizmoSystemSet, VisualDebug},
     scentmap::{self, ScentMap, ScentSettings, ScentType, WeightType},
-    MainCamera, SimState, SpatialMarker, spawner::Spawner, SpatialIndex, SoundScape,
+    spatial_helper::DistanceAwareQuery,
+    spawner::Spawner,
+    SoundScape, SpatialIndex, SpatialMarker,
 };
 
 pub struct AntPlugin;
 
 impl Plugin for AntPlugin {
     fn build(&self, app: &mut App) {
-        app
-        .insert_resource(AntSettings::default())
-        .add_systems(Update, (ant_get_pos, navigate_move).chain())
-        .add_systems(Update, ant_vagrancy_check.run_if(on_timer(Duration::from_secs_f32(0.25))))
-            //.add_systems(PreUpdate, cull_mortal_ants)
+        app.insert_resource(AntSettings::default())
+            .add_systems(
+                Update,
+                (
+                    task_idlers
+                        .pipe(task_foragers)
+                        .pipe(task_nursemaids)
+                        .in_set(LaborPhase::Task),
+                    (
+                        idle_ant_behavior,
+                        nursmaid_ant_behavior,
+                        forager_ant_behavior,
+                    )
+                        .after(LaborPhase::Task),
+                    (forager_timer_reset, forager_behavior_debug, debug_ant_assignment, nav_debug)
+                        .before(GizmoSystemSet::GizmoQueueDraw),
+                    navigate_move,
+                )
+                    .chain(),
+            )
+            .add_systems(
+                Update,
+                ant_vagrancy_check.run_if(on_timer(Duration::from_secs_f32(0.25))),
+            )
             .add_systems(
                 Update,
                 ant_stink.run_if(on_timer(Duration::from_secs_f32(0.25))),
@@ -44,13 +67,88 @@ pub struct Ant {
     home: Vec2,
 }
 
-#[derive(Component, Default)]
-pub enum AntBehavior {
-    #[default]
-    Wander,
-    Gather,
-    BringHomeFood,
+trait AssignmentCommand<X>
+where
+    X: Command,
+{
+    fn get_command(n: Entity) -> X;
 }
+
+struct Assign<T: Default> {
+    entity: Entity,
+    marker: PhantomData<T>,
+}
+
+#[derive(Component, Clone, Copy)]
+pub enum ForagerAnt {
+    Seeking,
+    FollowingTrail,
+    BringingHomeFood,
+    GoingHomeEmpty,
+}
+impl Default for ForagerAnt {
+    fn default() -> Self {
+        Self::Seeking
+    }
+}
+
+impl Command for Assign<ForagerAnt> {
+    fn apply(self, world: &mut World) {
+        let mut ent = world.entity_mut(self.entity);
+        ent.remove::<NursemaidAnt>();
+        ent.remove::<IdleAnt>();
+        ent.insert(ForagerAnt::default());
+    }
+}
+
+impl AssignmentCommand<Assign<ForagerAnt>> for ForagerAnt {
+    fn get_command(n: Entity) -> Assign<ForagerAnt> {
+        Assign {
+            entity: n,
+            marker: PhantomData,
+        }
+    }
+}
+
+#[derive(Component, Default)]
+pub struct NursemaidAnt;
+impl Command for Assign<NursemaidAnt> {
+    fn apply(self, world: &mut World) {
+        let mut ent = world.entity_mut(self.entity);
+        ent.remove::<ForagerAnt>();
+        ent.remove::<IdleAnt>();
+        ent.insert(NursemaidAnt);
+    }
+}
+
+impl AssignmentCommand<Assign<NursemaidAnt>> for NursemaidAnt {
+    fn get_command(n: Entity) -> Assign<NursemaidAnt> {
+        Assign {
+            entity: n,
+            marker: PhantomData,
+        }
+    }
+}
+#[derive(Component, Default)]
+pub struct IdleAnt;
+impl Command for Assign<IdleAnt> {
+    fn apply(self, world: &mut World) {
+        let mut ent = world.entity_mut(self.entity);
+        ent.remove::<ForagerAnt>();
+        ent.remove::<NursemaidAnt>();
+        ent.insert(IdleAnt);
+    }
+}
+
+impl AssignmentCommand<Assign<IdleAnt>> for IdleAnt {
+    fn get_command(n: Entity) -> Assign<IdleAnt> {
+        Assign {
+            entity: n,
+            marker: PhantomData,
+        }
+    }
+}
+
 #[derive(Component)]
 pub struct Navigate {
     max_speed: f32,
@@ -65,7 +163,7 @@ pub struct Navigate {
 pub struct Carried;
 
 const ANT_STARTING_MAX_AGE: u64 = 240;
-const ANT_STARTING_CARRY_CAPACITY : i32 = 5;
+const ANT_STARTING_CARRY_CAPACITY: i32 = 5;
 const ANT_MOVE_SPEED: f32 = 5.0;
 const ANT_SEC_PER_ROTATION: f32 = 5.0;
 
@@ -80,7 +178,10 @@ pub struct AntSettings {
 }
 impl Default for AntSettings {
     fn default() -> Self {
-        AntSettings { carry_capacity: ANT_STARTING_CARRY_CAPACITY, life_span: ANT_STARTING_MAX_AGE }
+        AntSettings {
+            carry_capacity: ANT_STARTING_CARRY_CAPACITY,
+            life_span: ANT_STARTING_MAX_AGE,
+        }
     }
 }
 
@@ -89,100 +190,127 @@ pub struct AntBundle {
     ant: Ant,
     nav: Navigate,
     dbg: VisualDebug,
-    behavior: AntBehavior,
     sprite: SpriteBundle,
     marker: SpatialMarker,
 }
+struct AntSpawn {
+    colony_entity: Entity,
+    home: Vec2,
+}
+impl Command for AntSpawn {
+    fn apply(self, world: &mut World) {
+        //mut q_colony: Query<(&AntCapacity, &mut AntPopulation), With<Colony>>
+        let mut state: SystemState<(
+            Commands,
+            Res<AntSettings>,
+            EventWriter<SoundScape>,
+            Res<AssetServer>,
+            Query<(&AntCapacity, &mut AntPopulation), With<Colony>>,
+        )> = SystemState::from_world(world);
+        let (mut commands, ant_settings, mut soundscape, assets, mut q_colony) =
+            state.get_mut(world);
+        let (ant_cap, mut ant_pop) = q_colony.single_mut();
+        if ant_pop.0 < ant_cap.0 {
+            let mut pos = Transform::from_xyz(self.home.x, self.home.y, 2.);
+            pos.scale = Vec3::from((0.4, 0.4, 1.0));
+            let texture = assets.load("ant.png");
+            let sprite = SpriteBundle {
+                texture,
+                transform: pos,
+                ..default()
+            };
 
-fn cull_mortal_ants(
-    mut commands: Commands,
-    mut sounds: EventWriter<SoundScape>,
-    mortals: Query<(&Parent, &SimTimer), With<Lifespan>>,
-    ant_q: Query<&Ant>,
-    mut col_q: Query<&mut AntPopulation>,
-) {
-    for (parent, age) in mortals.iter() {
-        if age.time.finished() {
-            if let Ok(mut ant_pop) = ant_q
-                .get(parent.get())
-                .and_then(|ant| col_q.get_mut(ant.colony))
-            {
-                ant_pop.0 = (ant_pop.0 - 1).max(0);
-            }
-            sounds.send(SoundScape::AntDeath);
-            commands.entity(parent.get()).despawn_recursive();
+            commands
+                .spawn((
+                    AntBundle {
+                        ant: Ant {
+                            colony: self.colony_entity,
+                            home: self.home,
+                        },
+                        nav: Navigate {
+                            max_speed: ANT_MOVE_SPEED,
+                            max_radians_per_sec: TAU / ANT_SEC_PER_ROTATION,
+                            move_to: None,
+                        },
+                        dbg: VisualDebug::default(),
+                        sprite,
+                        marker: SpatialMarker,
+                    },
+                    IdleAnt,
+                    SimTimer::once_from(Duration::from_secs(120)),
+                ))
+                .with_children(|child_c| {
+                    child_c.spawn((Carried, FoodQuant::empty()));
+                });
+            soundscape.send(SoundScape::AntBorn);
+            ant_pop.0 += 1;
         }
+
+        state.apply(world);
+    }
+}
+pub trait AntCommandsExt {
+    fn spawn_ant(&mut self, owning_colony: Entity, home: Vec2);
+}
+impl<'a, 'b> AntCommandsExt for Commands<'a, 'b> {
+    fn spawn_ant(&mut self, owning_colony: Entity, home: Vec2) {
+        self.add(AntSpawn {
+            colony_entity: owning_colony,
+            home,
+        })
     }
 }
 
-pub fn spawn_ant_at_pos(
-    commands: &mut Commands,
-    assets: &Res<AssetServer>,
-    ant_settings: &Res<AntSettings>,
-    col_ent: Entity,
-    home: Vec2,
-) {
-    let mut pos = Transform::from_xyz(home.x, home.y, 1.);
-    pos.scale = Vec3::from((0.4, 0.4, 1.0));
-    let texture = assets.load("ant.png");
-    let sprite = SpriteBundle {
-        texture,
-        transform: pos,
-        ..default()
-    };
-    commands
-        .spawn(AntBundle {
-            ant: Ant {
-                colony: col_ent,
-                home,
-            },
-            nav: Navigate {
-                max_speed: ANT_MOVE_SPEED,
-                max_radians_per_sec: TAU / ANT_SEC_PER_ROTATION,
-                move_to: None,
-            },
-            dbg: VisualDebug::default(),
-            behavior: AntBehavior::default(),
-            sprite,
-            marker: SpatialMarker,
-        })
-        .with_children(|c_commands| {
-            c_commands.spawn((
-                Lifespan,
-                SimTimer {
-                    time: Timer::new(Duration::new(ant_settings.life_span,0), TimerMode::Once),
-                },
-            ));
-        });
-}
-
 fn navigate_move(
-    mut q: Query<(&mut Transform, &mut Navigate, &mut VisualDebug)>,
+    mut q: Query<(
+        &GlobalTransform,
+        &mut Transform,
+        &mut Navigate,
+    )>,
     game_time: Res<Time>,
     game_clock: Res<State<TickRate>>,
-    mut gizmos: Gizmos,
 ) {
     let frame_delta = scaled_time(game_clock.get(), game_time.delta())
         .as_secs_f32()
         .clamp(f32::EPSILON, 1.0);
 
-    for (mut transform, mut nav, mut dbg) in q.iter_mut() {
+    for (global_transform, mut transform, mut nav) in q.iter_mut() {
         if let Some(destination) = nav.move_to {
-            let scaled_speed = nav.max_speed * frame_delta;
+            let mut scaled_speed = nav.max_speed * frame_delta;
             let scaled_rot_speed = nav.max_radians_per_sec * frame_delta;
 
-            let mut pos_2d = transform.translation.xy();
-            //take pity on the turn radius
-            if pos_2d.distance(destination) <= (scaled_speed * 2.0 * PI) {
-                transform.translation = Vec3::from((destination, 1.));
-                //gizmos.circle_2d(transform.translation.xy(), 10.0, Color::RED);
-                nav.move_to = None;
-                continue;
-            }
+            let mut pos_2d = global_transform.translation().xy();
 
             let mut vec = (destination - pos_2d).normalize();
             let facing = (transform.rotation * Vec3::Y).xy();
             let angle_delta = vec.angle_between(facing);
+
+            //If we're ~ one frame away just teleport there - this fixes a host of xeno's paradox type edge-cases.
+            if destination.distance(pos_2d) <= (scaled_speed * 2.0) {
+                transform.translation = Vec3::from((pos_2d, 1.));
+                transform.rotate_local_axis(Vec3::Z, -angle_delta);
+                nav.move_to = None;
+                continue;
+            }
+
+            // Figure out if our destination is inside our turn radius
+            let turn_radius = nav.max_speed / nav.max_radians_per_sec;
+            let face_angle = Vec2::Y.angle_between(facing);
+            //These should represent the respective centers of our left + right "deadzones"
+            let left_void_center = (Vec2::from_angle(face_angle + PI) * turn_radius) + pos_2d;
+            let right_void_center = (Vec2::from_angle(face_angle) * turn_radius) + pos_2d;
+
+            
+
+            //If our destination is within our deadzones, scale down our speed based on the arc we'd need to make to get there
+
+            if destination.distance(left_void_center) < turn_radius
+                || destination.distance(right_void_center) < turn_radius
+            {
+                scaled_speed = nav.max_radians_per_sec * (destination.distance(pos_2d) / 2.0)
+                    / angle_delta.cos();
+                scaled_speed *= frame_delta;
+            }
 
             if f32::abs(angle_delta) > scaled_rot_speed {
                 let adjusted_angle = -f32::signum(angle_delta) * scaled_rot_speed;
@@ -194,14 +322,18 @@ fn navigate_move(
 
             vec *= scaled_speed;
             pos_2d += vec;
-            //*dbg = VisualDebug::circle(transform.translation.xy(), 10., Color::GREEN);
-            //gizmos.circle_2d(transform.translation.xy(), 10.0, Color::GREEN);
 
             transform.translation = Vec3::from((pos_2d, 1.));
-        } else {
-            //gizmos.circle_2d(transform.translation.xy(), 10.0, Color::RED);
         }
     }
+}
+fn nav_debug(mut q: Query<(&Transform, &Navigate, &mut VisualDebug)>) {
+    q.iter_mut().for_each(|(transform, nav, mut dbg)|{
+        if let Some(destination) = nav.move_to {
+            dbg.add(GizmoDrawOp::line(transform.translation.truncate(), destination, Color::GREEN));
+        }
+        
+    });
 }
 
 fn select_random_wander_pos(
@@ -218,33 +350,49 @@ fn select_random_wander_pos(
         y: vector.y,
     }
 }
-fn select_random_pos_along_heading(
+
+fn select_random_pos_along_bearing(
     transform: &Transform,
+    dest: Vec2,
     rng: &mut ResMut<GlobalEntropy<WyRand>>,
 ) -> Vec2 {
-    let adjustment = rng.gen_range(-PI / 2.0..PI / 2.0);
-    let adj_vec = Vec2::from((adjustment.cos(), adjustment.sin()));
-    let vec = (transform.rotation * Vec3::Y).xy();
-    (adj_vec + vec).normalize() * 30.
+    let mypos = transform.translation.xy();
+    let to_dest = (dest - mypos).normalize_or_zero();
+    let mut base_point_towards_dest = mypos + (to_dest * 20.0);
+    if mypos.distance(dest) < 20.0 || base_point_towards_dest.distance(dest) > mypos.distance(dest)
+    {
+        base_point_towards_dest = dest;
+    }
+    let upper_jitter_threshold = mypos.distance(dest).min(10.0);
+    let distance_jitter = rng.gen_range(5.0..upper_jitter_threshold);
+    let directional_offset = rng.gen_range(0.0..TAU);
+
+    let offset_vec = Vec2::from_angle(directional_offset) * distance_jitter;
+    let mut target_pos = base_point_towards_dest + offset_vec;
+
+    if (target_pos).distance(dest) > transform.translation.xy().distance(dest) {
+        let all_ahead_full = transform.up().truncate().normalize_or_zero() * 7.0 + mypos;
+        target_pos = all_ahead_full;
+    }
+
+    target_pos
 }
 
-
-
-fn ant_vagrancy_check(mut q: Query<(&mut Ant, &Transform)>, spawner_q: Query<&Transform,(With<Spawner>, With<SpatialMarker>)>, space: Res<SpatialIndex>) {
+fn ant_vagrancy_check(
+    mut q: Query<(&mut Ant, &Transform)>,
+    space: DistanceAwareQuery<SpatialMarker, &GlobalTransform, With<Spawner>>,
+) {
     for (mut ant, ant_transform) in q.iter_mut() {
         let my_loc = ant_transform.translation.xy();
         //If we are already close enough, don't re-home.
         // This should prevent ants from pin-balling between spawners.
         if my_loc.distance(ant.home) <= 120.0 {
             continue;
-        } 
-        let mut distance:f32 = -1.0;
+        }
+        let mut distance: f32 = -1.0;
         let mut nearest = Vec2::ZERO;
-        for spawner_transform in 
-        space.within_distance(ant_transform.translation.xy(), 60.0)
-        .iter()
-        .filter_map(|(_,x)| x.and_then(|n|spawner_q.get(n).ok() )) {
-            let this_loc = spawner_transform.translation.xy();
+        for spawner_transform in space.within_distance(ant_transform.translation.xy(), 60.0) {
+            let this_loc = spawner_transform.translation().xy();
             let this_dist = this_loc.distance(my_loc);
             distance = this_dist.max(distance);
             if this_dist == distance {
@@ -255,158 +403,110 @@ fn ant_vagrancy_check(mut q: Query<(&mut Ant, &Transform)>, spawner_q: Query<&Tr
             ant.home = nearest;
         }
     }
-
 }
 
-fn ant_get_pos(
+struct AntVaccancies {
+    nursemaids: i32,
+    foragers: i32,
+}
+fn task_idlers(
     mut commands: Commands,
+    labor_q: Query<(
+        &LaborData<ForagerAnt>,
+        &LaborData<NursemaidAnt>,
+        &LaborData<IdleAnt>,
+    )>,
+    q: Query<Entity, (With<IdleAnt>, With<Ant>)>,
+) -> Result<AntVaccancies, ()> {
+    let (forager_stats, nursemaid_stats, idle_stats) = labor_q.single();
+    let mut vaccancies = AntVaccancies {
+        nursemaids: nursemaid_stats.requested - nursemaid_stats.active,
+        foragers: forager_stats.requested - forager_stats.active,
+    };
+
+    if vaccancies.nursemaids <= 0 && vaccancies.foragers <= 0 {
+        return Ok(vaccancies);
+    }
+    q.iter().for_each(|n| {
+        if vaccancies.nursemaids > 0 {
+            commands.add(NursemaidAnt::get_command(n));
+            vaccancies.nursemaids -= 1;
+            return;
+        }
+        if vaccancies.foragers > 0 {
+            commands.add(ForagerAnt::get_command(n));
+            vaccancies.foragers -= 1;
+            return;
+        }
+    });
+    Ok(vaccancies)
+}
+fn task_foragers(
+    In(res): In<Result<AntVaccancies, ()>>,
+    mut commands: Commands,
+    q: Query<(Entity, &ForagerAnt), With<Ant>>,
+) -> Result<AntVaccancies, ()> {
+    if let Ok(mut vaccancies) = res {
+        if vaccancies.nursemaids <= 0 && vaccancies.foragers > 0 {
+            return Ok(vaccancies);
+        }
+        q.iter().for_each(|(n, state)| match *state {
+            ForagerAnt::Seeking | ForagerAnt::GoingHomeEmpty => {
+                if vaccancies.nursemaids > 0 {
+                    commands.add(NursemaidAnt::get_command(n));
+                    vaccancies.nursemaids -= 1;
+                }
+                if vaccancies.foragers <= 0 {
+                    commands.add(IdleAnt::get_command(n));
+                    vaccancies.foragers += 1
+                }
+            }
+            _ => {}
+        });
+        Ok(vaccancies)
+    } else {
+        Err(())
+    }
+}
+fn task_nursemaids(
+    In(res): In<Result<AntVaccancies, ()>>,
+    mut commands: Commands,
+    q: Query<Entity, (With<Ant>, With<NursemaidAnt>)>,
+) {
+    if let Ok(mut vaccancies) = res {
+        if vaccancies.nursemaids >= 0 {
+            return;
+        }
+        q.iter().for_each(|n| {
+            if vaccancies.nursemaids < 0 {
+                commands.add(IdleAnt::get_command(n));
+                vaccancies.nursemaids += 1;
+            }
+        });
+    }
+}
+
+fn idle_ant_behavior(
     mut q: Query<
         (
-            Entity,
             &Ant,
-            &mut AntBehavior,
+            &GlobalTransform,
             &Transform,
             &mut Navigate,
-            Option<&Children>,
-            &mut VisualDebug,
         ),
-        With<Ant>,
+        (With<IdleAnt>, Without<NursemaidAnt>, Without<ForagerAnt>),
     >,
     mut scentmap: ResMut<ScentMap>,
     mut rng: ResMut<GlobalEntropy<WyRand>>,
-    ant_settings: Res<AntSettings>,
-    mut foodevents: EventWriter<FoodDeltaEvent>,
-    carried_q: Query<(Entity, &FoodQuant), (With<Parent>, With<Carried>)>,
-    food_q: Query<(Entity, &Transform), (With<FoodQuant>,With<SpatialMarker>, Without<Carried>)>,
-    space: Res<SpatialIndex>
 ) {
-    let navspan = info_span!("ant_nav: nav function call");
-    let outerguard = navspan.enter();
+    q.iter_mut()
+        .for_each(|(ant, transform, local_transform, mut nav)| {
 
-    let wanderspan = info_span!("ant_nav: wander");
-    let gatherspan = info_span!("ant_nav: gather");
-    let homeboundspan = info_span!("ant_nav: homebound");
-    'ants: for (entity, ant, mut behavior, transform, mut nav, maybe_kids, mut dbg) in q.iter_mut()
-    {
-        if let Some(_) = nav.move_to {
-            //gizmos.line_2d(transform.translation.xy(), navpos, Color::YELLOW);
-            continue 'ants;
-        }
-        //*dbg = VisualDebug::circle(transform.translation.xy(), 10., Color::YELLOW);
-        match *behavior {
-            AntBehavior::Wander => {
-                let guard = wanderspan.enter();
-                let new_pos = select_random_wander_pos(transform, &mut rng);
-                //info!("Selected random pos: {:?}", new_pos);
-                //commands.entity(entity).insert(MoveTo(new_pos));
-                nav.move_to = Some(new_pos);
-                *behavior = AntBehavior::Gather;
-                drop(guard);
-                continue 'ants;
+            if let Some(_) = nav.move_to {
+                return;
             }
-            AntBehavior::Gather => {
-                let guard = gatherspan.enter();
-                //If we are standing atop food, pick it up and go home.
-                //If we are close enough to the food to see it, go to the food.
-                let mypos = transform.translation.xy();
-                
-                //TODO - in the somewhat unlikely event that multiple food items are within 60 units, this may not select the nearest of them - unsure if we need to care.
-
-                for (food_ent, food_xform) in space.within_distance(mypos,60.0).iter().filter_map(|(_,n)| n.map(|x|food_q.get(x).ok())).flatten() {
-                    
-                    let foodpos = food_xform.translation.xy();
-                    if foodpos == mypos {
-                        // info!("Found Food, pickup");
-                        let child = commands.spawn((Carried, FoodQuant::empty())).id();
-                        commands.entity(entity).add_child(child);
-                        foodevents.send(FoodDeltaEvent {
-                            food_from: food_ent,
-                            food_to: child,
-                            requested: ant_settings.carry_capacity,
-                        });
-
-                        *behavior = AntBehavior::BringHomeFood;
-                        drop(guard);
-                        continue 'ants;
-                    } else {
-                        nav.move_to = Some(foodpos);
-                        drop(guard);
-                        continue 'ants;
-
-                    }
-                }
-                
-                if let Some(outbound_pos) = scentmap.strongest_smell_weighted(
-                    10.0,
-                    ScentType::FoundFoodSmell,
-                    WeightType::FurtherFrom(ant.home),
-                    transform,
-                ) {
-                    let home = ant.home;
-                    let self_pos = transform.translation.xy();
-                    let mut scent_vec = (outbound_pos - home).normalize_or_zero();
-                    scent_vec *= 20.0;
-
-                    let scent_dest = outbound_pos + scent_vec;
-                    let mut dest_vec = (scent_dest - self_pos).normalize_or_zero();
-                    dest_vec *= self_pos.distance(scent_dest) + 5.0;
-                    let dest = self_pos + dest_vec;
-
-                    //info!("smelled food, goto: {:?}", dest);
-                    //commands.entity(entity).insert(MoveTo(dest));
-                    nav.move_to = Some(dest);
-                    drop(guard);
-                    continue 'ants;
-                }
-
-                if let Some(pos) = scentmap.strongest_smell_weighted(
-                    10.0,
-                    ScentType::AntSmell,
-                    WeightType::Unweighted,
-                    transform,
-                ) {
-                    let mut new_vec = pos - transform.translation.xy();
-                    new_vec = new_vec.normalize();
-                    new_vec *= -30.0;
-
-                    let dest = new_vec + transform.translation.xy();
-                    //info!("Selected gather pos - stank {:?}, new pos {:?}", pos, dest);
-                    //commands.entity(entity).insert(MoveTo(dest));
-                    nav.move_to = Some(dest);
-                    drop(guard);
-
-                    continue 'ants;
-                }
-                let dest = select_random_pos_along_heading(transform, &mut rng);
-                //info!("Selected random gather pos - new pos {:?}", dest);
-                //commands.entity(entity).insert(MoveTo(dest));
-                nav.move_to = Some(dest);
-                continue 'ants;
-            }
-            AntBehavior::BringHomeFood => {
-                let guard = homeboundspan.enter();
-                if transform.translation.xy() == ant.home {
-                    if let Some((c_food_ent, carried_food)) = maybe_kids
-                        .map(|n| n.iter().find_map(|x| carried_q.get(*x).ok()))
-                        .flatten()
-                    {
-                        foodevents.send(FoodDeltaEvent {
-                            requested: carried_food.0,
-                            food_from: c_food_ent,
-                            food_to: ant.colony,
-                        })
-                    }
-
-                    *behavior = AntBehavior::Wander;
-                    drop(guard);
-                    continue 'ants;
-                }
-                if ant.home.distance(transform.translation.xy()) <= 60.0 {
-                    //commands.entity(entity).insert(MoveTo(Vec2::from((0., 0.))));
-                    nav.move_to = Some(ant.home);
-                    drop(guard);
-                    continue 'ants;
-                }
+            let distance_home = transform.translation().xy().distance(ant.home);
+            if distance_home >= 30.0 {
                 if let Some(homebound_pos) = scentmap.strongest_smell_weighted(
                     10.0,
                     ScentType::AntSmell,
@@ -414,37 +514,344 @@ fn ant_get_pos(
                     transform,
                 ) {
                     let home = ant.home;
-                    let self_pos = transform.translation.xy();
+                    let self_pos = transform.translation().xy();
                     let mut scent_vec = (home - homebound_pos).normalize_or_zero();
                     scent_vec *= 10.0;
 
                     let scent_dest = homebound_pos + scent_vec;
-                    let mut dest_vec = (scent_dest - self_pos).normalize_or_zero();
-                    dest_vec *= self_pos.distance(scent_dest) + 5.0;
-                    let dest = self_pos + dest_vec;
+                    if ant.home.distance(scent_dest) < distance_home {
+                        let mut dest_vec = (scent_dest - self_pos).normalize_or_zero();
+                        dest_vec *= self_pos.distance(scent_dest) + 5.0;
+                        let dest = self_pos + dest_vec;
 
-                    //commands.entity(entity).insert(MoveTo(dest));
+                        //commands.entity(entity).insert(MoveTo(dest));
+                        nav.move_to = Some(dest);
+                    }
+                } else {
+                    let dest = select_random_pos_along_bearing(local_transform, ant.home, &mut rng);
                     nav.move_to = Some(dest);
-                    drop(guard);
-                    continue 'ants;
                 }
-                //TODO - probably figure out some way to point vaguely towards home
-                // commands
-                //     .entity(entity)
-                //     .insert(MoveTo(select_random_pos_along_heading(transform, &mut rng)));
-                nav.move_to = Some(select_random_pos_along_heading(transform, &mut rng));
-                drop(guard);
-                continue 'ants;
+                return;
             }
+            let new_pos = select_random_wander_pos(local_transform, &mut rng);
+            nav.move_to = Some(new_pos);
+        })
+}
+fn debug_ant_assignment(mut q: Query<(&mut VisualDebug, &GlobalTransform, Has<ForagerAnt>, Has<NursemaidAnt>, Has<IdleAnt>), With<Ant>>) {
+
+    q.iter_mut().for_each(|(mut dbg, transform, is_forager,is_nursemaid,is_idle)|{
+        if is_forager {
+            dbg.add(GizmoDrawOp::circle(
+                transform.translation().xy(),
+                10.0,
+                Color::WHITE,
+            ));
         }
-    }
-    drop(outerguard);
+        if is_nursemaid {
+            dbg.add(GizmoDrawOp::circle(
+                transform.translation().xy(),
+                10.0,
+                Color::PINK,
+            ));
+        }
+        if is_idle {
+            dbg.add(GizmoDrawOp::circle(
+                transform.translation().xy(),
+                10.0,
+                Color::ORANGE,
+            ));
+        }
+    });
+
+    
+
+    
+    
+
+}
+
+
+fn nursmaid_ant_behavior(
+    mut q: Query<
+        (
+            &Ant,
+            &GlobalTransform,
+            &Transform,
+            &mut Navigate,
+        ),
+        (With<NursemaidAnt>, Without<IdleAnt>, Without<ForagerAnt>),
+    >,
+    mut scentmap: ResMut<ScentMap>,
+    mut rng: ResMut<GlobalEntropy<WyRand>>,
+) {
+    //TODO - make this "real"
+    q.iter_mut()
+        .for_each(|(ant, transform, local_transform, mut nav)| {
+
+            if let Some(_) = nav.move_to {
+                return;
+            }
+            let distance_home = transform.translation().xy().distance(ant.home);
+            if distance_home >= 45.0 {
+                if let Some(homebound_pos) = scentmap.strongest_smell_weighted(
+                    10.0,
+                    ScentType::AntSmell,
+                    WeightType::CloserTo(ant.home),
+                    transform,
+                ) {
+                    let home = ant.home;
+                    let self_pos = transform.translation().xy();
+                    let mut scent_vec = (home - homebound_pos).normalize_or_zero();
+                    scent_vec *= 10.0;
+
+                    let scent_dest = homebound_pos + scent_vec;
+                    if ant.home.distance(scent_dest) < distance_home {
+                        let mut dest_vec = (scent_dest - self_pos).normalize_or_zero();
+                        dest_vec *= self_pos.distance(scent_dest) + 5.0;
+                        let dest = self_pos + dest_vec;
+
+                        nav.move_to = Some(dest);
+                    }
+                } else {
+                    let dest = select_random_pos_along_bearing(local_transform, ant.home, &mut rng);
+                    nav.move_to = Some(dest);
+                }
+                return;
+            }
+            let new_pos = select_random_wander_pos(local_transform, &mut rng);
+            nav.move_to = Some(new_pos);
+        })
+}
+
+fn forager_ant_behavior(
+    mut commands: Commands,
+    mut q: Query<
+        (
+            Entity,
+            &Ant,
+            &mut ForagerAnt,
+            &GlobalTransform,
+            &Transform,
+            &mut Navigate,
+            &mut SimTimer,
+            &Children,
+        ),
+        (Without<IdleAnt>, Without<NursemaidAnt>),
+    >,
+    mut scentmap: ResMut<ScentMap>,
+    mut rng: ResMut<GlobalEntropy<WyRand>>,
+    ant_settings: Res<AntSettings>,
+    mut foodevents: EventWriter<FoodDeltaEvent>,
+    carried_q: Query<(Entity, &FoodQuant), (With<Parent>, With<Carried>)>,
+    space: DistanceAwareQuery<
+        SpatialMarker,
+        (Entity, &GlobalTransform, &FoodQuant),
+        (Without<Carried>, Without<Colony>),
+    >,
+) {
+    q.iter_mut().for_each(
+        |(
+            entity,
+            ant,
+            mut behavior,
+            transform,
+            local_transform,
+            mut nav,
+            mut seek_timer,
+            children,
+        )| {
+            let mypos = transform.translation().xy();
+            if let Some(_) = nav.move_to {
+                return;
+            }
+
+
+            let food_in_sight: Vec<(Entity, &GlobalTransform, &FoodQuant)> =
+                space.within_distance(mypos, 60.0).collect();
+            let food_nearby = food_in_sight.len() > 0;
+
+            let mut move_to_nearest_chunk = || {
+                let mut pos_of_nearest_chunk: Vec2 = mypos + Vec2::from((120.0, 120.0));
+                let mut res_behavior: Option<ForagerAnt> = None;
+
+                for (food_ent, food_xform, food_q) in food_in_sight.iter() {
+                    let foodpos = food_xform.translation().xy();
+                    if foodpos.distance(mypos) <= food_q.interaction_distance() {
+                        for child in children.iter() {
+                            if let Ok(_) = carried_q.get(*child) {
+                                foodevents.send(FoodDeltaEvent {
+                                    food_from: *food_ent,
+                                    food_to: *child,
+                                    requested: ant_settings.carry_capacity,
+                                });
+
+                                res_behavior = Some(ForagerAnt::BringingHomeFood);
+                                nav.move_to = None;
+                                return res_behavior;
+                            }
+                        }
+                    } else {
+                        let this_dist = mypos.distance(foodpos);
+                        if this_dist < mypos.distance(pos_of_nearest_chunk) {
+                            pos_of_nearest_chunk = foodpos;
+                            nav.move_to = Some(pos_of_nearest_chunk);
+                            res_behavior = Some(ForagerAnt::FollowingTrail);
+                        }
+                    }
+                }
+                res_behavior
+            };
+
+            match (*behavior, food_nearby) {
+                (ForagerAnt::BringingHomeFood, _) | (ForagerAnt::GoingHomeEmpty, false) => {
+                    if transform.translation().xy().distance(ant.home) <= 3.0 {
+                        for child in children.iter() {
+                            if let Ok((entity, carried_food)) = carried_q.get(*child) {
+                                foodevents.send(FoodDeltaEvent {
+                                    requested: carried_food.0,
+                                    food_from: entity,
+                                    food_to: ant.colony,
+                                })
+                            }
+                        }
+
+                        *behavior = ForagerAnt::default();
+
+                        return;
+                    }
+                    if ant.home.distance(transform.translation().xy()) <= 60.0 {
+                        nav.move_to = Some(ant.home);
+
+                        return;
+                    }
+                    if let Some(homebound_pos) = scentmap.strongest_smell_weighted(
+                        10.0,
+                        ScentType::AntSmell,
+                        WeightType::CloserTo(ant.home),
+                        transform,
+                    ) {
+                        let self_pos = transform.translation().xy();
+                        let mut scent_vec = (ant.home - homebound_pos).normalize_or_zero();
+                        scent_vec *= 10.0;
+
+                        let scent_dest = homebound_pos + scent_vec;
+
+                        let mut dest_vec = (scent_dest - self_pos).normalize_or_zero();
+                        dest_vec *= self_pos.distance(scent_dest) + 5.0;
+                        let dest = self_pos + dest_vec;
+                        if dest.distance(ant.home) < mypos.distance(ant.home) {
+                            nav.move_to = Some(dest);
+                            return;
+                        }
+                    }
+                    // pretend we're facing home so that we get a random destination in a vaguely homeward direction.
+
+                    let dest =
+                        select_random_pos_along_bearing(&local_transform, ant.home, &mut rng);
+
+                    nav.move_to = Some(dest);
+                }
+                (
+                    ForagerAnt::Seeking | ForagerAnt::FollowingTrail | ForagerAnt::GoingHomeEmpty,
+                    true,
+                ) => {
+                    if let Some(new_behavior) = move_to_nearest_chunk() {
+                        *behavior = new_behavior;
+                    }
+                }
+                (ForagerAnt::Seeking | ForagerAnt::FollowingTrail, false) => {
+                    if let Some(outbound_pos) = scentmap.strongest_smell_weighted(
+                        10.0,
+                        ScentType::FoundFoodSmell,
+                        WeightType::FurtherFrom(ant.home),
+                        transform,
+                    ) {
+                        let home = ant.home;
+                        let mut scent_vec = (outbound_pos - home).normalize_or_zero();
+                        scent_vec *= 20.0;
+
+                        let scent_dest = outbound_pos + scent_vec;
+                        let mut dest_vec = (scent_dest - mypos).normalize_or_zero();
+                        dest_vec *= mypos.distance(scent_dest) + 5.0;
+                        let dest = mypos + dest_vec;
+                        nav.move_to = Some(dest);
+
+                        *behavior = ForagerAnt::FollowingTrail;
+
+                        return;
+                    }
+                    //No food is in sight, and we don't smell anything.
+                    *behavior = ForagerAnt::Seeking;
+
+                    if seek_timer.time.finished() {
+                        *behavior = ForagerAnt::GoingHomeEmpty;
+                        return;
+                    }
+
+                    if let Some(pos) = scentmap.strongest_smell_weighted(
+                        10.0,
+                        ScentType::AntSmell,
+                        WeightType::Unweighted,
+                        transform,
+                    ) {
+                        let mut new_vec = pos - transform.translation().xy();
+                        new_vec = new_vec.normalize();
+                        new_vec *= -30.0;
+
+                        let dest = new_vec + transform.translation().xy();
+                        nav.move_to = Some(dest);
+
+                        return;
+                    }
+                    let dest =
+                        select_random_pos_along_bearing(&local_transform, ant.home, &mut rng);
+                    nav.move_to = Some(dest);
+                }
+            }
+        },
+    )
+}
+fn forager_timer_reset(mut q: Query<(&ForagerAnt, &mut SimTimer)>) {
+    q.iter_mut()
+        .for_each(|(behavior, mut seek_timer)| match *behavior {
+            ForagerAnt::Seeking => {}
+            _ => {
+                seek_timer.time.reset();
+            }
+        });
+}
+fn forager_behavior_debug(
+    mut q: Query<(&ForagerAnt, &SimTimer, &GlobalTransform, &mut VisualDebug), With<Ant>>,
+) {
+    q.iter_mut()
+        .for_each(|(behavior, seek_timer, transform, mut dbg)| {
+            let mypos = transform.translation().xy();
+            match *behavior {
+                ForagerAnt::Seeking => {
+                    dbg.add(GizmoDrawOp::circle(mypos, 5.0, Color::GREEN));
+                    dbg.add(GizmoDrawOp::circle(
+                        mypos,
+                        ((120.0 - seek_timer.time.remaining_secs()) / 120.0) * 10.0,
+                        Color::CYAN,
+                    ));
+                }
+                ForagerAnt::FollowingTrail => {
+                    dbg.add(GizmoDrawOp::circle(mypos, 5.0, Color::BLUE))
+                }
+                ForagerAnt::GoingHomeEmpty => {
+                    dbg.add(GizmoDrawOp::circle(mypos, 5.0, Color::RED))
+                }
+                ForagerAnt::BringingHomeFood => {
+                    dbg.add(GizmoDrawOp::circle(mypos, 5.0, Color::YELLOW))
+                }
+            };
+        });
 }
 
 fn ant_stink(
     mut scentmap: ResMut<ScentMap>,
     settings: Res<ScentSettings>,
-    q: Query<(&AntBehavior, &Transform), With<Ant>>,
+    q: Query<(Option<&ForagerAnt>, &Transform), With<Ant>>,
 ) {
     let span = info_span!("ant stink system call");
     let _ = span.enter();
@@ -461,7 +868,7 @@ fn ant_stink(
         );
 
         match behavior {
-            AntBehavior::BringHomeFood => {
+            Some(ForagerAnt::BringingHomeFood) => {
                 scentmap.log_scent(
                     max_smell,
                     transform,

@@ -1,17 +1,11 @@
-use bevy::{input::InputSystem, prelude::*, window::PrimaryWindow};
-use bevy_spatial::SpatialAccess;
-use leafwing_input_manager::{
-    axislike::DualAxisData, plugin::InputManagerSystem, prelude::*, systems::run_if_enabled,
-    user_input::InputKind,
-};
+use bevy::{prelude::*, window::PrimaryWindow};
+use leafwing_input_manager::{prelude::*,user_input::InputKind,};
 
 use crate::{
-    buildables::{BuildableCommandsExt, BuildableObject, BuildableStore, PlacementOperation},
-    colony::Colony,
-    food::FoodQuant,
+
     gametimer::TickRate,
-    spawner::HasFootPrint,
-    MainCamera, SimState, SpatialIndex, SpatialMarker, UIFocus, upgrades::{UpgradeStringIndex, self, BuySpawner, ColonyUpgrade},
+
+    MainCamera, SimState, UIFocus,
 };
 
 const CAMERA_PAN_SPEED_FACTOR: f32 = 10.0;
@@ -32,15 +26,8 @@ impl Plugin for PlayerInputPlugin {
                     player_open_menu,
                 )
                     .run_if(in_state(UIFocus::Gamefield)),
-            )
-            .add_systems(
-                Update,
-                track_cursor_for_building_placement
-                    .pipe(user_place_building)
-                    .run_if(
-                        resource_exists::<PlacementStore>().and_then(in_state(UIFocus::Gamefield)),
-                    ),
             );
+
     }
 }
 
@@ -60,19 +47,6 @@ pub enum GamefieldActions {
     OpenMainMenu
 }
 
-#[derive(Resource)]
-pub struct PlacementStore {
-    selected_building_key: String,
-    cost: i32,
-}
-impl PlacementStore {
-    pub fn new(selected_building_key: String, cost: i32) -> PlacementStore {
-        PlacementStore {
-            selected_building_key,
-            cost,
-        }
-    }
-}
 
 fn setup(
     mut commands: Commands,
@@ -181,96 +155,7 @@ fn user_toggle_pause(
         }
     }
 }
-fn track_cursor_for_building_placement(
-    opstore: Res<PlacementStore>,
-    bstore: Res<BuildableStore>,
-    space: Res<SpatialIndex>,
-    space_q: Query<Entity, (With<HasFootPrint>, With<SpatialMarker>)>,
-    win_q: Query<&Window, With<PrimaryWindow>>,
-    cam_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    mut gizmos: Gizmos,
-) -> Result<Vec2, String> {
-    let mut result = Err("unspecified problem".into());
-    let mut exc_color = Color::GREEN;
-    let mut inc_color = Color::GREEN;
-    if let Some(cursor) = win_q.get_single().ok().and_then(|n| n.cursor_position()) {
-        let (cam, cam_xform) = cam_q.single();
-        let pos = cam.viewport_to_world_2d(cam_xform, cursor).unwrap();
-        result = Ok(pos);
-        if let Some(exclusion_params) = bstore
-            .get(&opstore.selected_building_key)
-            .and_then(|x| x.exclusion_params())
-        {
-            let in_exclusion = space
-                .within_distance(pos, exclusion_params.exclusion_radius)
-                .iter()
-                .filter_map(|(_, n)| *n)
-                .filter_map(|ent| space_q.get(ent).ok())
-                .count();
 
-            if let Some(inclusion_radius) = exclusion_params.maximum_distance {
-                let in_inclusion = space
-                    .within_distance(pos, inclusion_radius)
-                    .iter()
-                    .filter_map(|(_, n)| *n)
-                    .filter_map(|ent| space_q.get(ent).ok())
-                    .count();
-                if in_inclusion < 1 {
-                    inc_color = Color::RED;
-                    result = Err("Building too far from colony".into());
-                }
-                gizmos.circle_2d(pos, inclusion_radius, inc_color);
-            }
-
-            if in_exclusion != 0 {
-                exc_color = Color::RED;
-                result = Err("Building intersects footprint".into());
-            }
-            gizmos.circle_2d(pos, exclusion_params.exclusion_radius, exc_color);
-        }
-    }
-    result
-}
-
-
-fn user_place_building(
-    In(param): In<Result<Vec2, String>>,
-    mut commands: Commands,
-    q: Query<&ActionState<GamefieldActions>>,
-
-    mut col_q: Query<(Entity,&mut UpgradeStringIndex, &mut FoodQuant), With<Colony>>,
-
-    opstore: Res<PlacementStore>,
-) {
-    match param {
-        Ok(pos) => {
-            let (colony,mut upgrades, mut food) = col_q.single_mut();
-            for action in q.iter() {
-                if action.just_pressed(GamefieldActions::GameFieldClick) {
-                    //guard placement by position
-
-                    if opstore.cost > food.0 {
-                        commands.remove_resource::<PlacementStore>();
-                        return;
-                    }
-                    food.0 -= opstore.cost;
-                    //TODO - fix this to be parametric over building type when we have more buildings.
-                    upgrades.increment_index(BuySpawner::name());
-                    commands.place_buildable(PlacementOperation {
-                        position: pos,
-                        owning_colony: colony,
-                        key: opstore.selected_building_key.clone(),
-                    });
-                    commands.remove_resource::<PlacementStore>();
-                    return;
-                }
-            }
-        }
-        Err(msg) => {
-           // info!(msg)
-        }
-    }
-}
 fn player_open_menu(
     mut next_state: ResMut<NextState<UIFocus>>,
     q: Query<&ActionState<GamefieldActions>>,

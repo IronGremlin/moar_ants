@@ -1,14 +1,13 @@
-use bevy::{math::Vec3Swizzles, prelude::*, utils::{HashMap, petgraph::data::Build}};
+use bevy::{prelude::*, utils::HashMap};
 use bevy_prng::WyRand;
 use bevy_rand::resource::GlobalEntropy;
 use rand::prelude::*;
-use std::{f32::consts::TAU, marker::PhantomData, time::Duration};
+use std::{f32::consts::TAU, marker::PhantomData};
 
 use crate::{
     ant::AntSettings,
-    colony::{init_default_colony, AntCapacity, Colony},
+    colony::{AntCapacity, Colony, MaxFood},
     food::FoodQuant,
-    spawner::{self, Spawner}, playerinput::PlacementStore, buildables::{BuildableObject, BuildableStore},
 };
 
 pub struct UpgradePlugin;
@@ -19,11 +18,10 @@ impl Plugin for UpgradePlugin {
             Update,
             (
                 AntMaxPop::init,
-                BuySpawner::init,
+                ColonyMaxFood::init,
                 AntCarryCapacity::init,
-                AntLifespan::init,
             )
-                .run_if(when_colony_exists().and_then(run_once())),
+                .run_if(when_colony_exists.and_then(run_once())),
         )
         .add_systems(
             Update,
@@ -32,33 +30,30 @@ impl Plugin for UpgradePlugin {
                 AntMaxPop::progress_bar_update,
                 AntMaxPop::progress_bar_display_effect,
                 AntMaxPop::set_upgrade_button_able,
-                BuySpawner::place_spawner.run_if(not(resource_exists::<PlacementStore>())),
-                BuySpawner::progress_bar_update,
-                BuySpawner::set_upgrade_button_able,
+                ColonyMaxFood::upgrade_colony,
+                ColonyMaxFood::progress_bar_update,
+                ColonyMaxFood:: progress_bar_display_effect,
+                ColonyMaxFood::set_upgrade_button_able,
                 AntCarryCapacity::upgrade_ants,
                 AntCarryCapacity::progress_bar_update,
                 AntCarryCapacity::progress_bar_display_effect,
                 AntCarryCapacity::set_upgrade_button_able,
-                AntLifespan::upgrade_ants,
-                AntLifespan::progress_bar_update,
-                AntLifespan::progress_bar_display_effect,
-                AntLifespan::set_upgrade_button_able,
+
             ),
         );
     }
 }
 
-pub fn spawn_upgrade_buttons(commands: &mut Commands) -> [Entity; 4] {
+pub fn spawn_upgrade_buttons(commands: &mut Commands) -> [Entity; 3] {
     [
         AntMaxPop::spawn_button(commands),
-        BuySpawner::spawn_button(commands),
+        ColonyMaxFood::spawn_button(commands),
         AntCarryCapacity::spawn_button(commands),
-        AntLifespan::spawn_button(commands),
     ]
 }
 
-fn when_colony_exists() -> impl Condition<()> {
-    IntoSystem::into_system(|q: Query<&Colony>| q.get_single().is_ok())
+fn when_colony_exists( q: Query<&Colony>) -> bool {
+    q.get_single().is_ok()
 }
 
 #[derive(Component, Default)]
@@ -291,45 +286,53 @@ impl AntUpgrade for AntCarryCapacity {
     }
 }
 #[derive(Component, Default)]
-pub struct AntLifespan;
-impl AntLifespan {
-    fn val(idx: i32) -> u64 {
-        match idx {
-            1 => 80,
-            2 => 160,
-            3 => 320,
-            4..=10 => 480,
-            _ => 960,
+pub struct ColonyMaxFood;
+impl ColonyMaxFood {
+    fn val() -> i32 {
+        200
+    }
+    fn progress_bar_display_effect(
+        q: Query<(&UpgradeStringIndex, &MaxFood), With<Colony>>,
+        mut text_q: Query<&mut Text, With<ColonyUpgradeProgress<Self>>>,
+    ) {
+        let (upgrades, maxfood) = q.single();
+        if let Some(feature_index)  = upgrades.costs.get(&Self::name()) {
+            for mut text in text_q.iter_mut() {
+                text.sections[2].value = format!("|Current: {} Next: {}|",maxfood.0, maxfood.0 + Self::val());
+            }
+        }
+        
+    }
+
+    fn upgrade_colony(
+        mut q: Query<(&mut UpgradeStringIndex, &mut FoodQuant, &mut MaxFood), With<Colony>>,
+        button_q: Query<&Interaction, With<ColonyUpgradeButton<Self>>>,
+    ) {
+        //TODO - figure this out when we have player colony id logic.
+        if button_q
+            .get_single()
+            .is_ok_and(|f| matches!(f, Interaction::Pressed))
+        {
+            let (mut upgrades, mut food, mut ant_cap) = q.single_mut();
+            let cost = Self::cost(&1);
+            if cost <= food.0 {
+                food.0 -= cost;
+                ant_cap.0 += Self::val();
+                upgrades.increment_index(Self::name());
+            }
         }
     }
 }
-impl ColonyUpgrade for AntLifespan {
+impl ColonyUpgrade for ColonyMaxFood {
     fn name() -> String {
-        "Ant Lifespan".into()
+        "Colony Max Food".into()
     }
-    fn cost(cost_index: &i32) -> i32 {
-        squarish(*cost_index, 5.0, 100.0) as i32
+    fn cost(_: &i32) -> i32 {
+        50
     }
 }
-impl AntUpgrade for AntLifespan {
-    fn display_effect(ant_settings: &AntSettings, idx: i32) -> String {
-        let current = ant_settings.life_span;
-        let next = ant_settings.life_span + Self::val(idx);
 
-        format!("|Current: {:0>2}h:{:0>2}m:{:0>2}s Next: {:0>2}h:{:0>2}m:{:0>2}s|", (current /60) /60,(current/60) % 60, current %60, (next /60) /60,(next/60) % 60, next %60)
-    }
-    fn do_upgrade(
-        food: &mut FoodQuant,
-        ant_settings: &mut AntSettings,
-        upgrades: &mut UpgradeStringIndex,
-        cost: i32,
-        feature_index: i32,
-    ) {
-        food.0 -= cost;
-        ant_settings.life_span += Self::val(feature_index);
-        upgrades.increment_index(Self::name());
-    }
-}
+
 #[derive(Component, Default)]
 pub struct AntMaxPop;
 impl AntMaxPop {
@@ -381,43 +384,11 @@ impl ColonyUpgrade for AntMaxPop {
         "Ant Capacity".into()
     }
     fn cost(cost_index: &i32) -> i32 {
-        squarish(*cost_index, 5.0, 100.0) as i32
+        squarish(*cost_index, 8.0, 100.0) as i32
     }
 }
-#[derive(Component, Default)]
-pub struct BuySpawner;
-impl BuySpawner {
-    //TODO - make this an actual placement action
-    fn place_spawner(
-        mut commands: Commands,
-        assets: Res<AssetServer>,
-        mut q: Query<(Entity, &mut UpgradeStringIndex, &mut FoodQuant), With<Colony>>,
-        button_q: Query<&Interaction, With<ColonyUpgradeButton<Self>>>,
-        spawner_q: Query<&Transform, With<Spawner>>,
-        mut rng: ResMut<GlobalEntropy<WyRand>>,
-    ) {
-        if button_q
-            .get_single()
-            .is_ok_and(|f| matches!(f, Interaction::Pressed))
-        {
-            let (col_ent, mut upgrades, mut food) = q.single_mut();
-            let feature_index = upgrades.costs.get(&Self::name()).unwrap();
-            let cost = Self::cost(feature_index);
-            if cost <= food.0 {
-                 commands.insert_resource(PlacementStore::new("Spawner".into(), cost))
-               
-            }
-        }
-    }
-}
-impl ColonyUpgrade for BuySpawner {
-    fn name() -> String {
-        "Buy Spawner".into()
-    }
-    fn cost(cost_index: &i32) -> i32 {
-        cubeish(*cost_index, 0.8, 1500.0) as i32
-    }
-}
+
+
 
 #[derive(Component)]
 pub struct UpgradeStringIndex {

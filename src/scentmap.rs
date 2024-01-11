@@ -120,7 +120,7 @@ impl ScentMap {
         radius: f32,
         scent: ScentType,
         weighting: WeightType,
-        transform: &Transform,
+        transform: &GlobalTransform,
     ) -> Option<Vec2> {
         let span = info_span!("scentmap: get smell");
         let _ = span.enter();
@@ -136,7 +136,7 @@ impl ScentMap {
         let coords = scent_grid_coords(transform);
         let key = (scent, coords.0, coords.1);
         
-        let current_pos = transform.translation.xy();
+        let current_pos = transform.translation().xy();
         let my_distance = match weighting {
             WeightType::CloserTo(home) |  WeightType::FurtherFrom(home) => home.distance(current_pos),
             _ => 0.0
@@ -212,8 +212,8 @@ pub enum ScentType {
     AntSmell,
 }
 
-fn scent_grid_coords(t: &Transform) -> (i32, i32) {
-    let vec = t.translation.xy();
+fn scent_grid_coords(t: &GlobalTransform) -> (i32, i32) {
+    let vec = t.translation().xy();
     //note to self : f -> i is a truncation
     (vec.x as i32, vec.y as i32)
 }

@@ -18,9 +18,17 @@ impl Default for GameClock {
     }
 }
 
-#[derive(Component)]
+#[derive(Component,Clone)]
 pub struct SimTimer {
     pub time: Timer
+}
+impl SimTimer {
+   pub fn once_from(duration: Duration) -> Self {
+        SimTimer {time : Timer::new(duration, TimerMode::Once)}
+    }
+    pub fn repeating_from(duration: Duration) -> Self {
+        SimTimer {time : Timer::new(duration, TimerMode::Repeating)}
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
