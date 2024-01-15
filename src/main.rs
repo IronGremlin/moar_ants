@@ -13,6 +13,7 @@ mod spatial_helper;
 mod spawner;
 mod ui_helpers;
 mod upgrades;
+mod misc_utility;
 
 use std::time::Duration;
 
@@ -51,6 +52,7 @@ fn main() {
                     }),
                     ..default()
                 })
+                .set(ImagePlugin::default_nearest())
                 .build(),
         )
         .add_plugins(
@@ -63,6 +65,9 @@ fn main() {
             AutomaticUpdate::<SpatialMarker>::new()
                 .with_spatial_ds(SpatialStructure::KDTree2)
                 .with_frequency(Duration::from_secs_f32(0.5)),
+        ).add_plugins(
+            AutomaticUpdate::<AntSpatialMarker>::new()
+                .with_spatial_ds(SpatialStructure::KDTree2),
         )
         .add_plugins((MainMenuUI, GameTimerPlugin, PlayerInputPlugin))
         .add_plugins((
@@ -91,7 +96,14 @@ fn main() {
 }
 #[derive(Component, Default)]
 pub struct SpatialMarker;
+
+
 type SpatialIndex = KDTree2<SpatialMarker>;
+
+#[derive(Component, Default)]
+pub struct AntSpatialMarker;
+
+type AntPositionIndex = KDTree2<SpatialMarker>;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum SimState {

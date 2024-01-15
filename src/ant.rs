@@ -5,7 +5,10 @@ use std::{
 };
 
 use bevy::{
-    ecs::{system::{Command, SystemState}, query::Has},
+    ecs::{
+        query::Has,
+        system::{Command, SystemState},
+    },
     math::Vec3Swizzles,
 };
 use bevy::{prelude::*, time::common_conditions::on_timer};
@@ -20,17 +23,20 @@ use crate::{
     food::{FoodDeltaEvent, FoodQuant},
     gametimer::{scaled_time, SimTimer, TickRate},
     gizmodable::{GizmoDrawOp, GizmoSystemSet, VisualDebug},
+    misc_utility::NaNGuard,
     scentmap::{self, ScentMap, ScentSettings, ScentType, WeightType},
     spatial_helper::DistanceAwareQuery,
     spawner::Spawner,
-    SoundScape, SpatialIndex, SpatialMarker,
+    AntSpatialMarker, SoundScape, SpatialIndex, SpatialMarker,
 };
 
 pub struct AntPlugin;
 
 impl Plugin for AntPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(AntSettings::default())
+        app
+        .register_type::<AntSettings>()
+        .insert_resource(AntSettings::default())
             .add_systems(
                 Update,
                 (
@@ -44,9 +50,14 @@ impl Plugin for AntPlugin {
                         forager_ant_behavior,
                     )
                         .after(LaborPhase::Task),
-                    (forager_timer_reset, forager_behavior_debug, debug_ant_assignment, nav_debug)
+                    (
+                        forager_timer_reset,
+                        forager_behavior_debug,
+                        debug_ant_assignment,
+                        nav_debug,
+                    )
                         .before(GizmoSystemSet::GizmoQueueDraw),
-                    navigate_move,
+                    (ant_i_gravity, navigate_move).chain(),
                 )
                     .chain(),
             )
@@ -166,12 +177,14 @@ const ANT_STARTING_MAX_AGE: u64 = 240;
 const ANT_STARTING_CARRY_CAPACITY: i32 = 5;
 const ANT_MOVE_SPEED: f32 = 5.0;
 const ANT_SEC_PER_ROTATION: f32 = 5.0;
+const ANT_I_GRAVITY_FACTOR: f32 = 5.0;
+const ANT_I_GRAVITY_MAXIMUM: f32 = 60.0;
 
 #[derive(Component)]
 pub struct Lifespan;
 
 //TODO - probably make this keyed to colony entity at some point
-#[derive(Resource)]
+#[derive(Resource,Reflect)]
 pub struct AntSettings {
     pub carry_capacity: i32,
     pub life_span: u64,
@@ -191,7 +204,7 @@ pub struct AntBundle {
     nav: Navigate,
     dbg: VisualDebug,
     sprite: SpriteBundle,
-    marker: SpatialMarker,
+    marker: AntSpatialMarker,
 }
 struct AntSpawn {
     colony_entity: Entity,
@@ -234,7 +247,7 @@ impl Command for AntSpawn {
                         },
                         dbg: VisualDebug::default(),
                         sprite,
-                        marker: SpatialMarker,
+                        marker: AntSpatialMarker,
                     },
                     IdleAnt,
                     SimTimer::once_from(Duration::from_secs(120)),
@@ -262,11 +275,7 @@ impl<'a, 'b> AntCommandsExt for Commands<'a, 'b> {
 }
 
 fn navigate_move(
-    mut q: Query<(
-        &GlobalTransform,
-        &mut Transform,
-        &mut Navigate,
-    )>,
+    mut q: Query<(&GlobalTransform, &mut Transform, &mut Navigate)>,
     game_time: Res<Time>,
     game_clock: Res<State<TickRate>>,
 ) {
@@ -276,10 +285,10 @@ fn navigate_move(
 
     for (global_transform, mut transform, mut nav) in q.iter_mut() {
         if let Some(destination) = nav.move_to {
-            let mut scaled_speed = nav.max_speed * frame_delta;
-            let scaled_rot_speed = nav.max_radians_per_sec * frame_delta;
-
             let mut pos_2d = global_transform.translation().xy();
+            let max_speed = destination.distance(pos_2d);
+            let mut scaled_speed = (nav.max_speed * frame_delta).clamp(0.0, max_speed);
+            let scaled_rot_speed = nav.max_radians_per_sec * frame_delta;
 
             let mut vec = (destination - pos_2d).normalize();
             let facing = (transform.rotation * Vec3::Y).xy();
@@ -300,8 +309,6 @@ fn navigate_move(
             let left_void_center = (Vec2::from_angle(face_angle + PI) * turn_radius) + pos_2d;
             let right_void_center = (Vec2::from_angle(face_angle) * turn_radius) + pos_2d;
 
-            
-
             //If our destination is within our deadzones, scale down our speed based on the arc we'd need to make to get there
 
             if destination.distance(left_void_center) < turn_radius
@@ -309,7 +316,7 @@ fn navigate_move(
             {
                 scaled_speed = nav.max_radians_per_sec * (destination.distance(pos_2d) / 2.0)
                     / angle_delta.cos();
-                scaled_speed *= frame_delta;
+                scaled_speed = (scaled_speed * frame_delta).clamp(0.0, max_speed);
             }
 
             if f32::abs(angle_delta) > scaled_rot_speed {
@@ -328,12 +335,54 @@ fn navigate_move(
     }
 }
 fn nav_debug(mut q: Query<(&Transform, &Navigate, &mut VisualDebug)>) {
-    q.iter_mut().for_each(|(transform, nav, mut dbg)|{
+    q.iter_mut().for_each(|(transform, nav, mut dbg)| {
         if let Some(destination) = nav.move_to {
-            dbg.add(GizmoDrawOp::line(transform.translation.truncate(), destination, Color::GREEN));
+            dbg.add(GizmoDrawOp::line(
+                transform.translation.truncate(),
+                destination,
+                Color::GREEN,
+            ));
         }
-        
     });
+}
+
+fn ant_i_gravity(
+    ant_locations: DistanceAwareQuery<AntSpatialMarker, &GlobalTransform, With<Ant>>,
+    mut q: Query<&mut Transform, With<Ant>>,
+    time: Res<Time>,
+) {
+    q.iter_mut().for_each(|mut transform| {
+        let mypos = transform.translation.xy();
+        let nearby_ants = ant_locations.within_distance(mypos, 5.0);
+
+        let mut count: f32 = 0.0;
+
+        let mut ejection_vec = nearby_ants
+            .map(|ant_transform| {
+                count += 1.0;
+                let ant_pos = ant_transform.translation().xy();
+                let delta = ant_pos - mypos;
+                let mut magnitude = delta.distance(Vec2::ZERO);
+                magnitude = (magnitude * magnitude).recip();
+                let mut scaled_magnitude = (magnitude * ANT_I_GRAVITY_FACTOR)
+                    .clamp(0.0, ANT_I_GRAVITY_MAXIMUM)
+                    * time.delta_seconds();
+                scaled_magnitude.if_nan(0.0);
+                let mut vector = delta.normalize_or_zero() * scaled_magnitude;
+                vector.if_nan(Vec2::ZERO);
+                vector
+            })
+            .fold(Vec2::ZERO, |acc, n| acc + n);
+        if count == 0.0 {
+            return;
+        }
+        ejection_vec.if_nan(Vec2::ZERO);
+
+        // let (ejection_distance, dist_from_origin) = (ejection_vec.distance(Vec2::ZERO), (ejection_vec + mypos).distance(Vec2::ZERO));
+        // if ejection_distance > 0.0 { info!("Ant ejected! distance from (prior position, origin) : ({:?},{:?})", ejection_distance, dist_from_origin ); }
+
+        transform.translation += ejection_vec.extend(0.0);
+    })
 }
 
 fn select_random_wander_pos(
@@ -488,12 +537,7 @@ fn task_nursemaids(
 
 fn idle_ant_behavior(
     mut q: Query<
-        (
-            &Ant,
-            &GlobalTransform,
-            &Transform,
-            &mut Navigate,
-        ),
+        (&Ant, &GlobalTransform, &Transform, &mut Navigate),
         (With<IdleAnt>, Without<NursemaidAnt>, Without<ForagerAnt>),
     >,
     mut scentmap: ResMut<ScentMap>,
@@ -501,7 +545,6 @@ fn idle_ant_behavior(
 ) {
     q.iter_mut()
         .for_each(|(ant, transform, local_transform, mut nav)| {
-
             if let Some(_) = nav.move_to {
                 return;
             }
@@ -537,48 +580,47 @@ fn idle_ant_behavior(
             nav.move_to = Some(new_pos);
         })
 }
-fn debug_ant_assignment(mut q: Query<(&mut VisualDebug, &GlobalTransform, Has<ForagerAnt>, Has<NursemaidAnt>, Has<IdleAnt>), With<Ant>>) {
-
-    q.iter_mut().for_each(|(mut dbg, transform, is_forager,is_nursemaid,is_idle)|{
-        if is_forager {
-            dbg.add(GizmoDrawOp::circle(
-                transform.translation().xy(),
-                10.0,
-                Color::WHITE,
-            ));
-        }
-        if is_nursemaid {
-            dbg.add(GizmoDrawOp::circle(
-                transform.translation().xy(),
-                10.0,
-                Color::PINK,
-            ));
-        }
-        if is_idle {
-            dbg.add(GizmoDrawOp::circle(
-                transform.translation().xy(),
-                10.0,
-                Color::ORANGE,
-            ));
-        }
-    });
-
-    
-
-    
-    
-
+fn debug_ant_assignment(
+    mut q: Query<
+        (
+            &mut VisualDebug,
+            &GlobalTransform,
+            Has<ForagerAnt>,
+            Has<NursemaidAnt>,
+            Has<IdleAnt>,
+        ),
+        With<Ant>,
+    >,
+) {
+    q.iter_mut()
+        .for_each(|(mut dbg, transform, is_forager, is_nursemaid, is_idle)| {
+            if is_forager {
+                dbg.add(GizmoDrawOp::circle(
+                    transform.translation().xy(),
+                    10.0,
+                    Color::WHITE,
+                ));
+            }
+            if is_nursemaid {
+                dbg.add(GizmoDrawOp::circle(
+                    transform.translation().xy(),
+                    10.0,
+                    Color::PINK,
+                ));
+            }
+            if is_idle {
+                dbg.add(GizmoDrawOp::circle(
+                    transform.translation().xy(),
+                    10.0,
+                    Color::ORANGE,
+                ));
+            }
+        });
 }
-
 
 fn nursmaid_ant_behavior(
     mut q: Query<
-        (
-            &Ant,
-            &GlobalTransform,
-            &Transform,
-            &mut Navigate,
-        ),
+        (&Ant, &GlobalTransform, &Transform, &mut Navigate),
         (With<NursemaidAnt>, Without<IdleAnt>, Without<ForagerAnt>),
     >,
     mut scentmap: ResMut<ScentMap>,
@@ -587,7 +629,6 @@ fn nursmaid_ant_behavior(
     //TODO - make this "real"
     q.iter_mut()
         .for_each(|(ant, transform, local_transform, mut nav)| {
-
             if let Some(_) = nav.move_to {
                 return;
             }
@@ -664,7 +705,6 @@ fn forager_ant_behavior(
             if let Some(_) = nav.move_to {
                 return;
             }
-
 
             let food_in_sight: Vec<(Entity, &GlobalTransform, &FoodQuant)> =
                 space.within_distance(mypos, 60.0).collect();
@@ -835,12 +875,8 @@ fn forager_behavior_debug(
                         Color::CYAN,
                     ));
                 }
-                ForagerAnt::FollowingTrail => {
-                    dbg.add(GizmoDrawOp::circle(mypos, 5.0, Color::BLUE))
-                }
-                ForagerAnt::GoingHomeEmpty => {
-                    dbg.add(GizmoDrawOp::circle(mypos, 5.0, Color::RED))
-                }
+                ForagerAnt::FollowingTrail => dbg.add(GizmoDrawOp::circle(mypos, 5.0, Color::BLUE)),
+                ForagerAnt::GoingHomeEmpty => dbg.add(GizmoDrawOp::circle(mypos, 5.0, Color::RED)),
                 ForagerAnt::BringingHomeFood => {
                     dbg.add(GizmoDrawOp::circle(mypos, 5.0, Color::YELLOW))
                 }
