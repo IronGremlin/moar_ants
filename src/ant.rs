@@ -13,7 +13,6 @@ use bevy::{
 };
 use bevy::{prelude::*, time::common_conditions::on_timer};
 use bevy_rand::prelude::*;
-use bevy_spatial::SpatialAccess;
 use rand::prelude::*;
 
 use bevy_prng::WyRand;
@@ -27,16 +26,15 @@ use crate::{
     scentmap::{self, ScentMap, ScentSettings, ScentType, WeightType},
     spatial_helper::DistanceAwareQuery,
     spawner::Spawner,
-    AntSpatialMarker, SoundScape, SpatialIndex, SpatialMarker,
+    AntSpatialMarker, SoundScape, SpatialMarker,
 };
 
 pub struct AntPlugin;
 
 impl Plugin for AntPlugin {
     fn build(&self, app: &mut App) {
-        app
-        .register_type::<AntSettings>()
-        .insert_resource(AntSettings::default())
+        app.register_type::<AntSettings>()
+            .insert_resource(AntSettings::default())
             .add_systems(
                 Update,
                 (
@@ -184,7 +182,7 @@ const ANT_I_GRAVITY_MAXIMUM: f32 = 60.0;
 pub struct Lifespan;
 
 //TODO - probably make this keyed to colony entity at some point
-#[derive(Resource,Reflect)]
+#[derive(Resource, Reflect)]
 pub struct AntSettings {
     pub carry_capacity: i32,
     pub life_span: u64,
@@ -220,7 +218,7 @@ impl Command for AntSpawn {
             Res<AssetServer>,
             Query<(&AntCapacity, &mut AntPopulation), With<Colony>>,
         )> = SystemState::from_world(world);
-        let (mut commands, ant_settings, mut soundscape, assets, mut q_colony) =
+        let (mut commands, _ant_settings, mut soundscape, assets, mut q_colony) =
             state.get_mut(world);
         let (ant_cap, mut ant_pop) = q_colony.single_mut();
         if ant_pop.0 < ant_cap.0 {
@@ -467,7 +465,7 @@ fn task_idlers(
     )>,
     q: Query<Entity, (With<IdleAnt>, With<Ant>)>,
 ) -> Result<AntVaccancies, ()> {
-    let (forager_stats, nursemaid_stats, idle_stats) = labor_q.single();
+    let (forager_stats, nursemaid_stats, _idle_stats) = labor_q.single();
     let mut vaccancies = AntVaccancies {
         nursemaids: nursemaid_stats.requested - nursemaid_stats.active,
         foragers: forager_stats.requested - forager_stats.active,
@@ -665,10 +663,8 @@ fn nursmaid_ant_behavior(
 }
 
 fn forager_ant_behavior(
-    mut commands: Commands,
     mut q: Query<
         (
-            Entity,
             &Ant,
             &mut ForagerAnt,
             &GlobalTransform,
@@ -691,16 +687,7 @@ fn forager_ant_behavior(
     >,
 ) {
     q.iter_mut().for_each(
-        |(
-            entity,
-            ant,
-            mut behavior,
-            transform,
-            local_transform,
-            mut nav,
-            mut seek_timer,
-            children,
-        )| {
+        |(ant, mut behavior, transform, local_transform, mut nav, seek_timer, children)| {
             let mypos = transform.translation().xy();
             if let Some(_) = nav.move_to {
                 return;

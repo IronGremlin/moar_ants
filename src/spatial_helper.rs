@@ -1,23 +1,11 @@
-
-
 use bevy::{
     ecs::{
-        query::{QueryManyIter, ReadOnlyWorldQuery, WorldQuery, Has},
+        query::{QueryManyIter, ReadOnlyWorldQuery, WorldQuery},
         system::SystemParam,
     },
-    
-    prelude::*, math::Vec3Swizzles,
+    prelude::*,
 };
 use bevy_spatial::{kdtree::KDTree2, SpatialAccess};
-
-
-pub struct SpatialHelperPlugin;
-
-impl Plugin for SpatialHelperPlugin {
-    fn build(&self, app: &mut App) {
-        todo!()
-    }
-}
 
 #[derive(SystemParam)]
 pub struct DistanceAwareQuery<'w, 's, Comp, Q, F = ()>
@@ -29,7 +17,7 @@ where
     all_t: Query<'w, 's, Q, (F, With<Comp>)>,
     space: Res<'w, KDTree2<Comp>>,
 }
-
+#[allow(dead_code)]
 impl<'w, 's, Comp, Q, F> DistanceAwareQuery<'w, 's, Comp, Q, F>
 where
     Q: WorldQuery + 'static,
@@ -72,5 +60,3 @@ where
         self.all_t.iter_many_mut(spacevec)
     }
 }
-
-

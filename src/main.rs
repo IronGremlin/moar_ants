@@ -7,13 +7,13 @@ mod gametimer;
 mod gizmodable;
 mod larva;
 mod menu_ui;
+mod misc_utility;
 mod playerinput;
 mod scentmap;
 mod spatial_helper;
 mod spawner;
 mod ui_helpers;
 mod upgrades;
-mod misc_utility;
 
 use std::time::Duration;
 
@@ -26,7 +26,6 @@ use bevy::{
 use bevy_inspector_egui::quick::*;
 use bevy_prng::WyRand;
 use bevy_rand::prelude::*;
-use bevy_spatial::kdtree::KDTree2;
 use bevy_spatial::{AutomaticUpdate, SpatialStructure};
 use colony::ColonyPlugin;
 use food::FoodPlugin;
@@ -65,9 +64,9 @@ fn main() {
             AutomaticUpdate::<SpatialMarker>::new()
                 .with_spatial_ds(SpatialStructure::KDTree2)
                 .with_frequency(Duration::from_secs_f32(0.5)),
-        ).add_plugins(
-            AutomaticUpdate::<AntSpatialMarker>::new()
-                .with_spatial_ds(SpatialStructure::KDTree2),
+        )
+        .add_plugins(
+            AutomaticUpdate::<AntSpatialMarker>::new().with_spatial_ds(SpatialStructure::KDTree2),
         )
         .add_plugins((MainMenuUI, GameTimerPlugin, PlayerInputPlugin))
         .add_plugins((
@@ -97,13 +96,8 @@ fn main() {
 #[derive(Component, Default)]
 pub struct SpatialMarker;
 
-
-type SpatialIndex = KDTree2<SpatialMarker>;
-
 #[derive(Component, Default)]
 pub struct AntSpatialMarker;
-
-type AntPositionIndex = KDTree2<SpatialMarker>;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum SimState {
@@ -191,30 +185,5 @@ fn soundscape_processor(
             },
             ..default()
         },));
-    }
-}
-
-fn my_cursor_system(
-    // query to get the window (so we can read the current cursor position)
-    q_window: Query<&Window, With<PrimaryWindow>>,
-    // query to get camera transform
-    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-) {
-    // get the camera info and transform
-    // assuming there is exactly one main camera entity, so Query::single() is OK
-    let (camera, camera_transform) = q_camera.single();
-    camera
-        .viewport
-        .as_ref()
-        .map(|vp| eprintln!("View size: {}", vp.physical_size));
-
-    // There is only one primary window, so we can similarly get it from the query:
-    let window = q_window.single();
-
-    if let Some(cursor) = window.cursor_position() {
-        if let Some(pos) = camera.viewport_to_world_2d(camera_transform, cursor) {
-            eprintln!("World coords: {}/{}", pos.x, pos.y);
-            eprintln!("screen coords: {}/{}", cursor.x, cursor.y);
-        }
     }
 }

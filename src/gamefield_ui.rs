@@ -91,7 +91,7 @@ fn init_gamefield_ui(mut commands: Commands) {
         background_color: Color::BLUE.into(),
         ..default()
     };
-    let food_bar_layout_node = (NodeBundle {
+    let food_bar_layout_node = NodeBundle {
         style: Style {
             width: Val::Vw(95.0),
             height: Val::Vh(5.),
@@ -104,7 +104,7 @@ fn init_gamefield_ui(mut commands: Commands) {
         background_color: Color::WHITE.into(),
         border_color: Color::BLACK.into(),
         ..default()
-    });
+    };
     let food_bar_mask_node = (
         NodeBundle {
             style: Style {
@@ -292,22 +292,19 @@ fn increment_target_larva(
     mut chill: Local<ChillOut>,
     time: Res<Time>,
     mut q_col: Query<&mut LarvaTarget, With<Colony>>,
-        interaction: Query<&Interaction, (With<LarvaPlus>, Without<LarvaMinus>)>,
+    interaction: Query<&Interaction, (With<LarvaPlus>, Without<LarvaMinus>)>,
 ) {
     chill.be_chill(time.delta());
-    if ! chill.we_chillin() {
+    if !chill.we_chillin() {
         interaction.iter().take(1).for_each(|n| match *n {
-            Interaction::Pressed =>  { 
+            Interaction::Pressed => {
                 q_col.single_mut().0 += 1;
                 chill.be_chillin();
-            },
+            }
             _ => {}
         });
     }
-    
 }
-
-
 
 fn decrement_target_larva(
     mut chill: Local<ChillOut>,
@@ -316,7 +313,7 @@ fn decrement_target_larva(
     interaction: Query<&Interaction, (With<LarvaMinus>, Without<LarvaPlus>)>,
 ) {
     chill.be_chill(time.delta());
-    if ! chill.we_chillin() {
+    if !chill.we_chillin() {
         interaction.iter().take(1).for_each(|n| match *n {
             Interaction::Pressed => {
                 let mut larva_target = q_col.single_mut();
@@ -326,16 +323,18 @@ fn decrement_target_larva(
             _ => {}
         });
     }
-    
 }
 
 struct ChillOut {
     chillin: bool,
-    elapsed : Timer
+    elapsed: Timer,
 }
 impl Default for ChillOut {
     fn default() -> Self {
-        Self { chillin: false, elapsed: Timer::from_seconds(0.25, TimerMode::Once) }
+        Self {
+            chillin: false,
+            elapsed: Timer::from_seconds(0.25, TimerMode::Once),
+        }
     }
 }
 impl ChillOut {
@@ -349,9 +348,15 @@ impl ChillOut {
 
     fn be_chill(&mut self, delta: Duration) {
         match (self.chillin, self.done()) {
-            (false, _) => { return; },
-            (true,false) => { self.tick(delta); },
-            (true,true) => { self.clear(); }
+            (false, _) => {
+                return;
+            }
+            (true, false) => {
+                self.tick(delta);
+            }
+            (true, true) => {
+                self.clear();
+            }
         }
     }
     fn done(&self) -> bool {

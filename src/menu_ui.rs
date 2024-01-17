@@ -1,7 +1,6 @@
 use bevy::app::AppExit;
 use bevy::prelude::*;
 
-use crate::gametimer::TickRate;
 use crate::{MainMusicTrack, UIFocus};
 
 pub struct MainMenuUI;
@@ -152,7 +151,7 @@ fn toggle_music_button(
     let button = quit_button.single();
     match button {
         Interaction::Pressed => {
-            music.get_single_mut().map(|x| x.toggle());
+            let _ = music.get_single_mut().map(|x| x.toggle());
         }
         Interaction::Hovered | Interaction::None => {}
     }

@@ -5,9 +5,9 @@ use bevy::prelude::*;
 use crate::{
     ant::{Ant, AntSettings, ForagerAnt, IdleAnt, NursemaidAnt},
     food::FoodQuant,
+    gizmodable::{GizmoDrawOp, VisualDebug},
     larva::LarvaSettings,
     upgrades::UpgradeStringIndex,
-    UIFocus, gizmodable::{VisualDebug, GizmoDrawOp},
 };
 
 pub struct ColonyPlugin;
@@ -17,7 +17,7 @@ const STARTING_ANT_CAP: i32 = 35;
 pub struct Colony;
 #[derive(Component)]
 pub struct ColonyPos(Vec2);
-#[derive(Reflect,Component)]
+#[derive(Reflect, Component)]
 pub struct AntCapacity(pub i32);
 #[derive(Component, Reflect)]
 pub struct AntPopulation(pub i32);
@@ -25,7 +25,7 @@ pub struct AntPopulation(pub i32);
 #[derive(Component)]
 pub struct LarvaTarget(pub i32);
 
-#[derive(Component,Reflect)]
+#[derive(Component, Reflect)]
 pub struct MaxFood(pub i32);
 
 #[derive(Component, Default)]
@@ -64,12 +64,17 @@ pub enum LaborPhase {
 impl Plugin for ColonyPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<AntPopulation>()
-        .register_type::<AntCapacity>()
-        .register_type::<MaxFood>()
-        .add_systems(Startup, init_default_colony.run_if(run_once()))
+            .register_type::<AntCapacity>()
+            .register_type::<MaxFood>()
+            .add_systems(Startup, init_default_colony.run_if(run_once()))
             .configure_sets(
                 Update,
-                (LaborPhase::TakeCensus, LaborPhase::AssignRoles, LaborPhase::Task).chain(),
+                (
+                    LaborPhase::TakeCensus,
+                    LaborPhase::AssignRoles,
+                    LaborPhase::Task,
+                )
+                    .chain(),
             )
             .add_systems(
                 Update,
@@ -94,8 +99,8 @@ pub fn init_default_colony(mut commands: Commands) {
             home: ColonyPos((0., 0.).into()),
         },
         UpgradeStringIndex::new(),
-        VisualDebug::from_persistent(GizmoDrawOp::circle(Vec2::ZERO, 30.0, Color::YELLOW)),        
-        Name::new("Player_Colony")
+        VisualDebug::from_persistent(GizmoDrawOp::circle(Vec2::ZERO, 30.0, Color::YELLOW)),
+        Name::new("Player_Colony"),
     ));
 }
 

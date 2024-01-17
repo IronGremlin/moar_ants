@@ -77,7 +77,6 @@ impl ScentMap {
         let hashmap: &mut HashMap<(i32, i32), f32> = match scent {
             ScentType::FoundFoodSmell => &mut self.found_food_smell_data,
             ScentType::AntSmell => &mut self.ant_smell_data,
-            _ => &mut self.ant_smell_data,
         };
         let vec = transform.translation.xy();
         let k = (vec.x as i32, vec.y as i32);
@@ -114,7 +113,6 @@ impl ScentMap {
         }
     }
 
-
     pub fn strongest_smell_weighted(
         &mut self,
         radius: f32,
@@ -131,17 +129,16 @@ impl ScentMap {
         let hashmap = match scent {
             ScentType::FoundFoodSmell => &self.found_food_smell_data,
             ScentType::AntSmell => &self.ant_smell_data,
-            _ => &self.ant_smell_data,
         };
         let coords = scent_grid_coords(transform);
-        let key = (scent, coords.0, coords.1);
-        
+
         let current_pos = transform.translation().xy();
         let my_distance = match weighting {
-            WeightType::CloserTo(home) |  WeightType::FurtherFrom(home) => home.distance(current_pos),
-            _ => 0.0
+            WeightType::CloserTo(home) | WeightType::FurtherFrom(home) => {
+                home.distance(current_pos)
+            }
+            _ => 0.0,
         };
-        
 
         let dump: Vec<(f32, f32, f32)> = tree
             .within_radius(&[coords.0 as f32, coords.1 as f32], radius)
@@ -153,7 +150,9 @@ impl ScentMap {
             })
             .filter(|(p0, p1, _)| match weighting {
                 WeightType::CloserTo(home) => Vec2::from((*p0, *p1)).distance(home) < my_distance,
-                WeightType::FurtherFrom(home) => Vec2::from((*p0, *p1)).distance(home) > my_distance,
+                WeightType::FurtherFrom(home) => {
+                    Vec2::from((*p0, *p1)).distance(home) > my_distance
+                }
                 _ => true,
             })
             .collect();
@@ -162,13 +161,11 @@ impl ScentMap {
             return None;
         }
 
-
         let mut total_weight = 0.0;
         let mut weighted_sum_x = 0.0;
         let mut weighted_sum_y = 0.0;
 
         dump.iter().for_each(|(p0, p1, p2)| {
-
             let point_weight = p2;
             total_weight += point_weight;
             weighted_sum_x += p0 * point_weight;
@@ -178,7 +175,7 @@ impl ScentMap {
         let total_weight_recip = total_weight.recip();
         let weighted_midpoint_x = weighted_sum_x * total_weight_recip;
         let weighted_midpoint_y = weighted_sum_y * total_weight_recip;
-        if (weighted_midpoint_x.is_nan() || weighted_midpoint_y.is_nan()) {
+        if weighted_midpoint_x.is_nan() || weighted_midpoint_y.is_nan() {
             info!("FUCKING NAN")
         }
         let vec = Vec2 {

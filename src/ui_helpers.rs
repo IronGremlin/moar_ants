@@ -1,12 +1,10 @@
-use bevy::{
-    ecs::system::{Command, EntityCommand, EntityCommands},
-    prelude::*,
-};
+use bevy::{ecs::system::EntityCommands, prelude::*};
 
 #[derive(Default)]
 pub struct StyleBuilder {
     style: Style,
 }
+#[allow(dead_code)]
 impl StyleBuilder {
     pub fn new() -> Self {
         Self::default()
@@ -34,6 +32,7 @@ impl StyleBuilder {
 pub struct TextStyleBuilder {
     style: TextStyle,
 }
+#[allow(dead_code)]
 impl TextStyleBuilder {
     pub fn new() -> Self {
         Self::default()
@@ -65,7 +64,12 @@ pub trait UICommandsExt<'w, 's, T: Component> {
         background_color: Color,
         marker: T,
     ) -> EntityCommands<'w, 's, '_>;
-    fn make_text(&mut self, text: &str, text_style: TextStyle, marker:Option<T>) -> EntityCommands<'w, 's, '_>;
+    fn make_text(
+        &mut self,
+        text: &str,
+        text_style: TextStyle,
+        marker: Option<T>,
+    ) -> EntityCommands<'w, 's, '_>;
 }
 impl<'w, 's, T: Component> UICommandsExt<'w, 's, T> for Commands<'w, 's> {
     fn make_button(
@@ -93,13 +97,20 @@ impl<'w, 's, T: Component> UICommandsExt<'w, 's, T> for Commands<'w, 's> {
 
         return ec;
     }
-    fn make_text(&mut self, text: &str, text_style: TextStyle, marker: Option<T>) -> EntityCommands<'w, 's, '_> {
+    fn make_text(
+        &mut self,
+        text: &str,
+        text_style: TextStyle,
+        marker: Option<T>,
+    ) -> EntityCommands<'w, 's, '_> {
         let mut ec = self.spawn(TextBundle {
             text: Text::from_section(text, text_style),
             ..default()
         });
         match marker {
-            Some(x) => { ec.insert(x); }, 
+            Some(x) => {
+                ec.insert(x);
+            }
             _ => {}
         }
         ec

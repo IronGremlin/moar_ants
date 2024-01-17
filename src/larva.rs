@@ -3,12 +3,11 @@ use std::{cmp::Ordering, time::Duration};
 use bevy::{
     ecs::system::{Command, SystemParam, SystemState},
     prelude::*,
-    render::render_phase::PhaseItem,
 };
 
 use crate::{
     ant::{AntCommandsExt, NursemaidAnt},
-    colony::{Colony, LaborData, LaborPhase, AntCapacity, AntPopulation},
+    colony::{AntCapacity, AntPopulation, Colony, LaborData, LaborPhase},
     food::FoodQuant,
     gametimer::SimTimer,
 };
@@ -17,9 +16,10 @@ pub struct LarvaPlugin;
 
 impl Plugin for LarvaPlugin {
     fn build(&self, app: &mut App) {
-        app
-        .insert_resource(LarvaSettings::default())
-        .add_systems(Update, (set_larva_pop.after(LaborPhase::Task), larva_eat).chain());
+        app.insert_resource(LarvaSettings::default()).add_systems(
+            Update,
+            (set_larva_pop.after(LaborPhase::Task), larva_eat).chain(),
+        );
     }
 }
 
@@ -35,12 +35,13 @@ pub struct GrowthTimer;
 struct NewLarva;
 impl Command for NewLarva {
     fn apply(self, world: &mut World) {
-        let mut state: SystemState<(Commands, Query<Entity, With<Colony>>, Res<LarvaSettings>)> = SystemState::from_world(world);
-        let (mut commands,col_q, l_settings) = state.get_mut(world);
+        let mut state: SystemState<(Commands, Query<Entity, With<Colony>>, Res<LarvaSettings>)> =
+            SystemState::from_world(world);
+        let (mut commands, col_q, l_settings) = state.get_mut(world);
         commands
             .spawn(Larva {
                 growth: 0.0,
-                colony : col_q.single(),
+                colony: col_q.single(),
             })
             .with_children(|c_commands| {
                 c_commands.spawn((
@@ -53,7 +54,7 @@ impl Command for NewLarva {
                     },
                 ));
             });
-            state.apply(world);
+        state.apply(world);
     }
 }
 
@@ -80,9 +81,6 @@ impl LarvaSettings {
     }
     fn secs_per_tick(&self) -> f32 {
         self.ticks_per_sec.recip()
-    }
-    fn food_per_cycle(&self) -> i32 {
-        self.food_per_tick * self.ticks_til_grown
     }
 }
 
@@ -112,7 +110,7 @@ fn larva_eat(
     t_q.iter().for_each(|(timer, parent_entity)| {
         if timer.time.finished() {
             if let Ok(mut larva) = p_q.get_mut(parent_entity.get()) {
-                if food.0 > l_settings.food_per_tick &&  ant_pop.0  < ant_cap.0 {
+                if food.0 > l_settings.food_per_tick && ant_pop.0 < ant_cap.0 {
                     food.0 -= l_settings.food_per_tick;
                     larva.growth += l_settings.growth_per_tick();
                     if larva.growth >= 1.0 {

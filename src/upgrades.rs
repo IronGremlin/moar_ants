@@ -1,8 +1,6 @@
 use bevy::{prelude::*, utils::HashMap};
-use bevy_prng::WyRand;
-use bevy_rand::resource::GlobalEntropy;
-use rand::prelude::*;
-use std::{f32::consts::TAU, marker::PhantomData};
+
+use std::marker::PhantomData;
 
 use crate::{
     ant::AntSettings,
@@ -16,11 +14,7 @@ impl Plugin for UpgradePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (
-                AntMaxPop::init,
-                ColonyMaxFood::init,
-                AntCarryCapacity::init,
-            )
+            (AntMaxPop::init, ColonyMaxFood::init, AntCarryCapacity::init)
                 .run_if(when_colony_exists.and_then(run_once())),
         )
         .add_systems(
@@ -32,13 +26,12 @@ impl Plugin for UpgradePlugin {
                 AntMaxPop::set_upgrade_button_able,
                 ColonyMaxFood::upgrade_colony,
                 ColonyMaxFood::progress_bar_update,
-                ColonyMaxFood:: progress_bar_display_effect,
+                ColonyMaxFood::progress_bar_display_effect,
                 ColonyMaxFood::set_upgrade_button_able,
                 AntCarryCapacity::upgrade_ants,
                 AntCarryCapacity::progress_bar_update,
                 AntCarryCapacity::progress_bar_display_effect,
                 AntCarryCapacity::set_upgrade_button_able,
-
             ),
         );
     }
@@ -52,7 +45,7 @@ pub fn spawn_upgrade_buttons(commands: &mut Commands) -> [Entity; 3] {
     ]
 }
 
-fn when_colony_exists( q: Query<&Colony>) -> bool {
+fn when_colony_exists(q: Query<&Colony>) -> bool {
     q.get_single().is_ok()
 }
 
@@ -167,7 +160,6 @@ where
             let bar_display_food = food.0.clamp(0, cost);
             for mut text in text_q.iter_mut() {
                 text.sections[0].value = format!("Cost: {:?}", cost);
-                
             }
             for mut style in style_q.iter_mut() {
                 style.width = Val::Percent(100. * (bar_display_food as f32 / cost as f32));
@@ -199,13 +191,14 @@ pub trait AntUpgrade: ColonyUpgrade {
     fn display_effect(ant_settings: &AntSettings, idx: i32) -> String;
 
     fn progress_bar_display_effect(
-        q: Query<(&UpgradeStringIndex), With<Colony>>,
+        q: Query<&UpgradeStringIndex, With<Colony>>,
         ant_settings: Res<AntSettings>,
         mut text_q: Query<&mut Text, With<ColonyUpgradeProgress<Self>>>,
     ) {
         let upgrades = q.single();
         for mut text in text_q.iter_mut() {
-            text.sections[2].value = Self::display_effect(&ant_settings, *upgrades.costs.get(&Self::name()).unwrap());
+            text.sections[2].value =
+                Self::display_effect(&ant_settings, *upgrades.costs.get(&Self::name()).unwrap());
         }
     }
 
@@ -249,7 +242,6 @@ impl AntCarryCapacity {
             1 => 10,
             2 => 15,
             _ => 20,
-            
         }
     }
 }
@@ -264,11 +256,14 @@ impl ColonyUpgrade for AntCarryCapacity {
 impl AntUpgrade for AntCarryCapacity {
     fn display_effect(ant_settings: &AntSettings, idx: i32) -> String {
         if idx < 4 {
-            format!("|Current: {:?} Next: {:?}|", ant_settings.carry_capacity, Self::val(idx))
+            format!(
+                "|Current: {:?} Next: {:?}|",
+                ant_settings.carry_capacity,
+                Self::val(idx)
+            )
         } else {
             "MAX: 20".into()
         }
-        
     }
     fn do_upgrade(
         food: &mut FoodQuant,
@@ -279,9 +274,8 @@ impl AntUpgrade for AntCarryCapacity {
     ) {
         if feature_index < 4 {
             food.0 -= cost;
-        ant_settings.carry_capacity = Self::val(feature_index);
-        upgrades.increment_index(Self::name());
-
+            ant_settings.carry_capacity = Self::val(feature_index);
+            upgrades.increment_index(Self::name());
         }
     }
 }
@@ -296,12 +290,12 @@ impl ColonyMaxFood {
         mut text_q: Query<&mut Text, With<ColonyUpgradeProgress<Self>>>,
     ) {
         let (upgrades, maxfood) = q.single();
-        if let Some(feature_index)  = upgrades.costs.get(&Self::name()) {
+        if let Some(_) = upgrades.costs.get(&Self::name()) {
             for mut text in text_q.iter_mut() {
-                text.sections[2].value = format!("|Current: {} Next: {}|",maxfood.0, maxfood.0 + Self::val());
+                text.sections[2].value =
+                    format!("|Current: {} Next: {}|", maxfood.0, maxfood.0 + Self::val());
             }
         }
-        
     }
 
     fn upgrade_colony(
@@ -332,7 +326,6 @@ impl ColonyUpgrade for ColonyMaxFood {
     }
 }
 
-
 #[derive(Component, Default)]
 pub struct AntMaxPop;
 impl AntMaxPop {
@@ -350,13 +343,15 @@ impl AntMaxPop {
         mut text_q: Query<&mut Text, With<ColonyUpgradeProgress<Self>>>,
     ) {
         let (upgrades, ant_cap) = q.single();
-        if let Some(feature_index)  = upgrades.costs.get(&Self::name()) {
+        if let Some(feature_index) = upgrades.costs.get(&Self::name()) {
             for mut text in text_q.iter_mut() {
-                text.sections[2].value = format!("|Current: {} Next: {}|",ant_cap.0,ant_cap.0 + Self::val(*feature_index));
+                text.sections[2].value = format!(
+                    "|Current: {} Next: {}|",
+                    ant_cap.0,
+                    ant_cap.0 + Self::val(*feature_index)
+                );
             }
-
         }
-        
     }
 
     fn upgrade_colony(
@@ -388,8 +383,6 @@ impl ColonyUpgrade for AntMaxPop {
     }
 }
 
-
-
 #[derive(Component)]
 pub struct UpgradeStringIndex {
     pub costs: HashMap<String, i32>,
@@ -411,15 +404,8 @@ fn squarish(i: i32, flattener: f32, scalar: f32) -> f32 {
     let f = i as f32;
     (f * (f / flattener)) * scalar
 }
+#[allow(dead_code)]
 fn cubeish(i: i32, flattener: f32, scalar: f32) -> f32 {
     let f = i as f32;
-    (f*f * (f / flattener)) * scalar
-}
-
-//TODO - make some utility functions for random stuff
-fn random_offset_vec(rng: &mut ResMut<GlobalEntropy<WyRand>>) -> Vec2 {
-    let rand_angle = rng.gen_range(0.002..TAU);
-    let mut offset_vec = Vec2::from((f32::sin(rand_angle), f32::cos(rand_angle)));
-    offset_vec *= rng.gen_range(80.0..160.0);
-    offset_vec
+    (f * f * (f / flattener)) * scalar
 }

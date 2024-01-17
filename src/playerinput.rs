@@ -1,12 +1,7 @@
 use bevy::{prelude::*, window::PrimaryWindow};
-use leafwing_input_manager::{prelude::*,user_input::InputKind,};
+use leafwing_input_manager::{prelude::*, user_input::InputKind};
 
-use crate::{
-
-    gametimer::TickRate,
-
-    MainCamera, SimState, UIFocus,
-};
+use crate::{gametimer::TickRate, MainCamera, SimState, UIFocus};
 
 const CAMERA_PAN_SPEED_FACTOR: f32 = 10.0;
 pub struct PlayerInputPlugin;
@@ -27,10 +22,8 @@ impl Plugin for PlayerInputPlugin {
                 )
                     .run_if(in_state(UIFocus::Gamefield)),
             );
-
     }
 }
-
 
 #[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Reflect)]
 pub enum CameraControl {
@@ -44,9 +37,8 @@ pub enum GamefieldActions {
     DecreaseTimeScale,
     TogglePause,
     GameFieldClick,
-    OpenMainMenu
+    OpenMainMenu,
 }
-
 
 fn setup(
     mut commands: Commands,
@@ -105,10 +97,9 @@ fn pan_camera(
         ),
         With<Camera>,
     >,
-    win_q: Query<&Window, With<PrimaryWindow>>,
 ) {
     let (projection, mut camera_transform, action_state) = q.single_mut();
-    let win = win_q.single();
+
     if action_state.pressed(CameraControl::PanCam) {
         action_state
             .action_data(CameraControl::PanCam)
@@ -160,11 +151,9 @@ fn player_open_menu(
     mut next_state: ResMut<NextState<UIFocus>>,
     q: Query<&ActionState<GamefieldActions>>,
 ) {
-    
     for action in q.iter() {
         if action.just_pressed(GamefieldActions::OpenMainMenu) {
             next_state.set(UIFocus::MainMenu);
         }
     }
-    
 }

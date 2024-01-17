@@ -33,6 +33,7 @@ pub struct DebugGizmosOn {
     root: bool,
     debug_systems: HashMap<String, bool>,
 }
+#[allow(dead_code)]
 impl DebugGizmosOn {
     pub fn render_enabled(&self) -> bool {
         self.root
@@ -85,6 +86,7 @@ impl Default for VisualDebug {
         }
     }
 }
+#[allow(dead_code)]
 impl VisualDebug {
     pub fn clear(&mut self) {
         self.ops = Vec::new();
@@ -105,12 +107,13 @@ impl VisualDebug {
         }
     }
 }
-
+#[allow(dead_code)]
 pub enum GizmoDrawOp {
     Circle(CircleArgs),
     Line(LineArgs),
     Rect(RectArgs),
 }
+#[allow(dead_code)]
 impl GizmoDrawOp {
     pub fn circle(position: Vec2, radius: f32, color: Color) -> Self {
         GizmoDrawOp::Circle(CircleArgs {
@@ -147,7 +150,6 @@ fn render_gizmos(mut gizmos: Gizmos, q: Query<(&VisualDebug, Option<&GlobalTrans
                 GizmoDrawOp::Rect(args) => {
                     gizmos.rect_2d(args.position + base, args.rotation, args.size, args.color)
                 }
-                _ => {}
             }
         }
         for op in dbg.ops.iter() {
@@ -159,7 +161,6 @@ fn render_gizmos(mut gizmos: Gizmos, q: Query<(&VisualDebug, Option<&GlobalTrans
                 GizmoDrawOp::Rect(args) => {
                     gizmos.rect_2d(args.position, args.rotation, args.size, args.color)
                 }
-                _ => {}
             }
         }
     }
