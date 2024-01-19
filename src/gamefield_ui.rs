@@ -138,7 +138,7 @@ fn init_gamefield_ui(mut commands: Commands) {
             text: Text::from_section(
                 "0",
                 TextStyle {
-                    font_size: 12.,
+                    font_size: 16.,
                     color: Color::WHITE.into(),
                     ..default()
                 },
@@ -157,7 +157,7 @@ fn init_gamefield_ui(mut commands: Commands) {
             text: Text::from_section(
                 "0/100",
                 TextStyle {
-                    font_size: 12.,
+                    font_size: 16.,
                     color: Color::WHITE.into(),
                     ..default()
                 },
@@ -182,9 +182,9 @@ fn init_gamefield_ui(mut commands: Commands) {
     let larva_button_plus = commands
         .make_button(
             "+",
-            TextStyleBuilder::new().set_size(12.0).build(),
+            TextStyleBuilder::new().set_size(16.0).build(),
             StyleBuilder::new()
-                .set_size(Val::Px(14.0), Val::Px(14.0))
+                .set_size(Val::Px(18.0), Val::Px(18.0))
                 .build(),
             Color::RED,
             LarvaPlus,
@@ -193,16 +193,16 @@ fn init_gamefield_ui(mut commands: Commands) {
     let larva_target_display = commands
         .make_text(
             "1",
-            TextStyleBuilder::new().set_size(12.0).build(),
+            TextStyleBuilder::new().set_size(16.0).build(),
             Some(TargetLarvaDisplay),
         )
         .id();
     let larva_button_minus = commands
         .make_button(
             "-",
-            TextStyleBuilder::new().set_size(12.0).build(),
+            TextStyleBuilder::new().set_size(16.0).build(),
             StyleBuilder::new()
-                .set_size(Val::Px(14.0), Val::Px(14.0))
+                .set_size(Val::Px(18.0), Val::Px(18.0))
                 .build(),
             Color::RED,
             LarvaMinus,

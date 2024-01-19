@@ -17,7 +17,9 @@ pub struct MainMenu;
 
 impl Plugin for MainMenuUI {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(UIFocus::MainMenu), display_main_menu)
+        app
+        .add_systems(Update, open_menu_on_start.run_if(run_once()))
+        .add_systems(OnEnter(UIFocus::MainMenu), display_main_menu)
             .add_systems(OnExit(UIFocus::MainMenu), main_menu_teardown)
             .add_systems(
                 Update,
@@ -28,6 +30,9 @@ impl Plugin for MainMenuUI {
                 ),
             );
     }
+}
+fn open_menu_on_start(mut ui_focus: ResMut<NextState<UIFocus>>) {
+    ui_focus.set(UIFocus::MainMenu);
 }
 
 fn display_main_menu(mut root_commands: Commands) {

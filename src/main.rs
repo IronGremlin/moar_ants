@@ -83,6 +83,10 @@ fn main() {
         .add_event::<SoundScape>()
         .add_systems(Startup, setup)
         .add_systems(
+            First,
+            set_default_font.run_if(resource_exists::<DefaultFontHandle>()),
+        )
+        .add_systems(
             OnEnter(UIFocus::Gamefield),
             (start_sim, play_music.run_if(run_once())),
         )
@@ -108,6 +112,7 @@ pub enum SimState {
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum UIFocus {
     #[default]
+    NullFocus,
     MainMenu,
     Gamefield,
 }
@@ -123,10 +128,21 @@ pub enum SoundScape {
 #[derive(Component)]
 pub struct MainCamera;
 
+// This basically is acting as a marker resource to let us know at startup that we've found our replacement default font asset.
+#[derive(Resource)]
+struct DefaultFontHandle(Handle<Font>);
+
 #[derive(Component)]
 pub struct MainMusicTrack;
 
-fn setup(mut commands: Commands, mut q: Query<&mut Window, With<PrimaryWindow>>) {
+fn setup(
+    mut commands: Commands,
+    mut q: Query<&mut Window, With<PrimaryWindow>>,
+    asset_server: Res<AssetServer>,
+) {
+    let new_default_font = asset_server.load("monogram.ttf");
+    commands.insert_resource(DefaultFontHandle(new_default_font));
+
     let mut camera = Camera2dBundle::default();
     camera.projection.scaling_mode = ScalingMode::AutoMin {
         min_width: 800.0,
@@ -141,6 +157,16 @@ fn setup(mut commands: Commands, mut q: Query<&mut Window, With<PrimaryWindow>>)
     commands.spawn((camera, MainCamera));
     let mut win = q.single_mut();
     win.set_maximized(true);
+}
+fn set_default_font(
+    mut commands: Commands,
+    mut fonts: ResMut<Assets<Font>>,
+    font_handle: Res<DefaultFontHandle>,
+) {
+    if let Some(font) = fonts.remove(&font_handle.0) {
+        fonts.set_untracked(TextStyle::default().font, font);
+        commands.remove_resource::<DefaultFontHandle>();
+    }
 }
 
 fn start_sim(mut sim_state: ResMut<NextState<SimState>>) {
