@@ -164,7 +164,7 @@ fn set_default_font(
     font_handle: Res<DefaultFontHandle>,
 ) {
     if let Some(font) = fonts.remove(&font_handle.0) {
-        fonts.set_untracked(TextStyle::default().font, font);
+        fonts.insert(TextStyle::default().font, font);
         commands.remove_resource::<DefaultFontHandle>();
     }
 }
@@ -193,9 +193,9 @@ fn play_music(mut commands: Commands, assets: Res<AssetServer>) {
 fn soundscape_processor(
     mut commands: Commands,
     assets: Res<AssetServer>,
-    mut money_events: EventReader<SoundScape>,
+    mut sound_events: EventReader<SoundScape>,
 ) {
-    for event in money_events.iter() {
+    for event in sound_events.read() {
         let asset_path = match *event {
             SoundScape::AntBorn => "B_vib.wav",
             SoundScape::AntDeath => "Click.wav",

@@ -25,13 +25,13 @@ impl Plugin for PlayerInputPlugin {
     }
 }
 
-#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Reflect)]
+#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
 pub enum CameraControl {
     PanCam,
     Zoom,
 }
 
-#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Reflect)]
+#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
 pub enum GamefieldActions {
     IncreaseTimeScale,
     DecreaseTimeScale,

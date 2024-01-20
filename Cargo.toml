@@ -16,12 +16,12 @@ strip = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { version = "0.11.3", features = ["trace", "wav","mp3"]}
-bevy-inspector-egui = "0.19.0"
+bevy = { version = "0.12.1", features = ["trace", "wav","mp3"]}
+bevy-inspector-egui = "0.22.0"
 kd-tree = "0.5.1"
-bevy_spatial = "0.6.0"
-leafwing-input-manager = "0.10.0"
+bevy_spatial = "0.7.0"
+leafwing-input-manager = "0.11.2"
 rand_core = "0.6"
-bevy_rand = "0.3"
+bevy_rand = "0.4"
 rand = "0.8.5"
-bevy_prng = { version = "0.1", features = ["rand_chacha", "wyrand"] }
+bevy_prng = { version = "0.2", features = ["rand_chacha", "wyrand"] }
