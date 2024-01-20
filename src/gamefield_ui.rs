@@ -3,8 +3,10 @@ use std::time::Duration;
 use bevy::prelude::*;
 
 use crate::{
-    colony::{AntCapacity, AntPopulation, Colony, LarvaTarget, MaxFood},
+    ant::{ForagerAnt, IdleAnt, NursemaidAnt},
+    colony::{AntCapacity, AntPopulation, Colony, LaborData, LaborPhase, LarvaTarget, MaxFood},
     food::FoodQuant,
+    menu_ui::UIAnchorNode,
     ui_helpers::*,
     upgrades::spawn_upgrade_buttons,
     UIFocus,
@@ -41,8 +43,7 @@ impl Plugin for GamefieldUI {
             (
                 (
                     food_text_update,
-                    ant_pop_meter_update,
-                    food_meter_update,
+                    ant_pop_meter_update.after(LaborPhase::Task),
                     larva_target_display,
                 ),
                 (increment_target_larva, decrement_target_larva),
@@ -52,132 +53,181 @@ impl Plugin for GamefieldUI {
     }
 }
 
-fn init_gamefield_ui(mut commands: Commands) {
-    let root_node = (
-        NodeBundle {
+fn init_gamefield_ui(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    anchor: Res<UIAnchorNode>,
+) {
+    let root = commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                ..default()
+            },
+            Name::new("Gamefield UI Root"),
+            GamefieldUIRoot,
+        ))
+        .id();
+    let menu_layout = commands
+        .spawn(NodeBundle {
             style: Style {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
+                width: Val::Vw(20.0),
+                height: Val::Vh(90.0),
+                align_self: AlignSelf::End,
                 align_items: AlignItems::End,
+                justify_content: JustifyContent::Start,
                 flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::End,
                 ..default()
             },
             ..default()
-        },
-        Name::new("Gamefield UI Root"),
-        GamefieldUIRoot,
-    );
-    let menu_layout_node = NodeBundle {
-        style: Style {
-            width: Val::Vw(20.0),
-            height: Val::Vh(90.0),
-            align_self: AlignSelf::End,
-            align_items: AlignItems::End,
-            justify_content: JustifyContent::Start,
-            flex_direction: FlexDirection::Column,
+        })
+        .id();
+    let resource_label_layout = commands
+        .spawn(NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(10.),
+                padding: UiRect::all(Val::Px(4.0)),
+                flex_direction: FlexDirection::Row,
+                ..default()
+            },
+            background_color: Color::rgb_u8(99, 155, 255).into(),
             ..default()
-        },
-        background_color: Color::BLACK.into(),
-        ..default()
-    };
-    let resource_label_layout_node = NodeBundle {
-        style: Style {
-            width: Val::Percent(100.),
-            height: Val::Percent(10.),
-            flex_direction: FlexDirection::Row,
-            ..default()
-        },
-        background_color: Color::BLUE.into(),
-        ..default()
-    };
-    let food_bar_layout_node = NodeBundle {
-        style: Style {
-            width: Val::Vw(95.0),
-            height: Val::Vh(5.),
-            border: UiRect::all(Val::Px(2.)),
-            flex_direction: FlexDirection::Column,
-            align_self: AlignSelf::Center,
-            ..default()
-        },
+        })
+        .id();
+    let food_bar_layout = commands
+        .spawn(NodeBundle {
+            style: Style {
+                width: Val::Vw(95.0),
+                height: Val::Vh(5.),
+                border: UiRect::all(Val::Px(2.)),
+                flex_direction: FlexDirection::Column,
+                align_self: AlignSelf::Center,
+                ..default()
+            },
 
-        background_color: Color::WHITE.into(),
-        border_color: Color::BLACK.into(),
-        ..default()
-    };
-    let food_bar_mask_node = (
-        NodeBundle {
+            background_color: Color::WHITE.into(),
+            border_color: Color::BLACK.into(),
+            ..default()
+        })
+        .id();
+    let food_bar_mask = commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.),
+                    height: Val::Percent(100.),
+                    align_self: AlignSelf::Start,
+                    position_type: PositionType::Relative,
+                    ..default()
+                },
+                background_color: Color::GREEN.into(),
+                z_index: ZIndex::Local(10),
+                ..default()
+            },
+            GamefieldUIFoodBar,
+        ))
+        .id();
+    let food_bar_label = commands
+        .spawn((
+            TextBundle {
+                text: Text::from_sections([
+                    TextSection::new(
+                        "0",
+                        TextStyle {
+                            font_size: 32.0,
+                            color: Color::BLACK.into(),
+                            ..default()
+                        },
+                    ),
+                    TextSection::new(
+                        "\n",
+                        TextStyle {
+                            font_size: 32.0,
+                            color: Color::BLACK.into(),
+                            ..default()
+                        },
+                    ),
+                    TextSection::new(
+                        "",
+                        TextStyle {
+                            font_size: 32.0,
+                            color: Color::BLACK.into(),
+                            ..default()
+                        },
+                    ),
+                ]),
+                ..default()
+            },
+            GamefieldUIFoodBar,
+        ))
+        .id();
+    let food_bar_label_layout = commands
+        .spawn(NodeBundle {
             style: Style {
                 width: Val::Percent(100.),
                 height: Val::Percent(100.),
-                align_self: AlignSelf::Start,
-                position_type: PositionType::Relative,
+                position_type: PositionType::Absolute,
+                align_content: AlignContent::Center,
+                justify_content: JustifyContent::Center,
                 ..default()
             },
-            background_color: Color::GREEN.into(),
-            z_index: ZIndex::Local(10),
+            z_index: ZIndex::Local(20),
             ..default()
-        },
-        GamefieldUIFoodBar,
-    );
-    let food_bar_label_node = (
-        TextBundle {
-            text: Text::from_sections([
-                TextSection::new("0", TextStyle::default()),
-                TextSection::new("\n", TextStyle::default()),
-                TextSection::new("", TextStyle::default()),
-            ]),
-            background_color: Color::BLACK.into(),
-            ..default()
-        },
-        GamefieldUIFoodBar,
-    );
-
-    let food_label_node = (
-        TextBundle {
-            text: Text::from_section(
-                "0",
-                TextStyle {
-                    font_size: 16.,
-                    color: Color::WHITE.into(),
+        })
+        .id();
+    let growth_label = commands
+        .spawn((
+            TextBundle {
+                text: Text::from_sections([
+                    TextSection::new(
+                        "0/100",
+                        TextStyle {
+                            font_size: 32.,
+                            color: Color::WHITE.into(),
+                            ..default()
+                        },
+                    ),
+                    TextSection::new(
+                        "\n0",
+                        TextStyle {
+                            font_size: 16.,
+                            color: Color::WHITE.into(),
+                            ..default()
+                        },
+                    ),
+                    TextSection::new(
+                        "\n0",
+                        TextStyle {
+                            font_size: 16.,
+                            color: Color::WHITE.into(),
+                            ..default()
+                        },
+                    ),
+                    TextSection::new(
+                        "\n0",
+                        TextStyle {
+                            font_size: 16.,
+                            color: Color::WHITE.into(),
+                            ..default()
+                        },
+                    ),
+                ]),
+                style: Style {
+                    width: Val::Percent(50.),
                     ..default()
                 },
-            ),
-            style: Style {
-                width: Val::Percent(50.),
                 ..default()
             },
-            ..default()
-        },
-        Name::new("GamefieldUI Food Label"),
-        GamefieldUIFoodLabel,
-    );
-    let growth_label_node = (
-        TextBundle {
-            text: Text::from_section(
-                "0/100",
-                TextStyle {
-                    font_size: 16.,
-                    color: Color::WHITE.into(),
-                    ..default()
-                },
-            ),
-            style: Style {
-                width: Val::Percent(50.),
-                ..default()
-            },
-            ..default()
-        },
-        Name::new("GamefieldUI Ant Pop Label"),
-        GamefieldUIAntPopLabel,
-    );
-
-    let root = commands.spawn(root_node).id();
-    let menu_layout = commands.spawn(menu_layout_node).id();
-    let resource_label_layout = commands.spawn(resource_label_layout_node).id();
-
-    let food_label = commands.spawn(food_label_node).id();
-    let growth_label = commands.spawn(growth_label_node).id();
+            Name::new("GamefieldUI Ant Pop Label"),
+            GamefieldUIAntPopLabel,
+        ))
+        .id();
 
     let larva_button_plus = commands
         .make_button(
@@ -209,71 +259,73 @@ fn init_gamefield_ui(mut commands: Commands) {
         )
         .id();
 
-    let food_bar_layout = commands.spawn(food_bar_layout_node).id();
-    let food_bar_label = commands.spawn(food_bar_label_node).id();
-    let food_bar_mask = commands.spawn(food_bar_mask_node).id();
-
-    let upgrade_buttons = spawn_upgrade_buttons(&mut commands);
+    let upgrade_buttons = spawn_upgrade_buttons(&mut commands, &asset_server);
     //resource_label_layout,
     let menu_children = [
         [resource_label_layout].as_slice(),
         upgrade_buttons.as_slice(),
     ]
     .concat();
-
+    commands.entity(anchor.0).add_child(root);
+    commands.entity(root).add_child(food_bar_layout);
     commands.entity(root).add_child(menu_layout);
     commands
         .entity(menu_layout)
         .push_children(menu_children.as_slice());
 
     commands.entity(resource_label_layout).push_children(&[
-        food_label,
         growth_label,
         larva_button_minus,
         larva_target_display,
         larva_button_plus,
     ]);
-    commands.entity(root).add_child(food_bar_layout);
+
     commands
         .entity(food_bar_layout)
-        .push_children(&[food_bar_label, food_bar_mask]);
+        .push_children(&[food_bar_label_layout, food_bar_mask]);
+    commands
+        .entity(food_bar_label_layout)
+        .add_child(food_bar_label);
 }
 
 fn food_text_update(
-    mut food_text: Query<&mut Text, With<GamefieldUIFoodLabel>>,
-    q_col: Query<&FoodQuant, With<Colony>>,
-) {
-    for mut text in food_text.iter_mut() {
-        if let Ok(food) = q_col.get_single() {
-            text.sections[0].value = format!("Food: {:?} ", food.0);
-        }
-    }
-}
-fn food_meter_update(
-    mut text_q: Query<&mut Text, With<GamefieldUIFoodBar>>,
+    mut food_text: Query<&mut Text, With<GamefieldUIFoodBar>>,
     mut style_q: Query<&mut Style, (With<GamefieldUIFoodBar>, Without<Text>)>,
-
     q_col: Query<(&FoodQuant, &MaxFood), With<Colony>>,
 ) {
     if let Ok((food, maxfood)) = q_col.get_single() {
-        if let Ok(mut text) = text_q.get_single_mut() {
-            text.sections[0].value = format!("Food: {:?}", food.0);
-            text.sections[1].value = " / ".into();
-            text.sections[2].value = format!("{:?}", maxfood.0);
+        for mut text in food_text.iter_mut() {
+            text.sections[0].value = format!("Food: {:?} ", food.0);
+            text.sections[1].value = "/".into();
+            text.sections[2].value = format!(" {:?}", maxfood.0);
         }
-        if let Ok(mut style) = style_q.get_single_mut() {
-            style.width = Val::Percent(100.0 * (food.0 as f32 / maxfood.0 as f32));
+        for mut style in style_q.iter_mut() {
+            style.width = Val::Percent(100. * (food.0 as f32 / maxfood.0 as f32));
         }
     }
 }
 
 fn ant_pop_meter_update(
     mut food_text: Query<&mut Text, With<GamefieldUIAntPopLabel>>,
-    q_col: Query<(&AntPopulation, &AntCapacity), With<Colony>>,
+    q_col: Query<
+        (
+            &AntPopulation,
+            &AntCapacity,
+            &LaborData<ForagerAnt>,
+            &LaborData<NursemaidAnt>,
+            &LaborData<IdleAnt>,
+        ),
+        With<Colony>,
+    >,
 ) {
     for mut text in food_text.iter_mut() {
-        if let Ok((ant_pop, ant_cap)) = q_col.get_single() {
+        if let Ok((ant_pop, ant_cap, forager_stats, nursemaid_stats, idle_stats)) =
+            q_col.get_single()
+        {
             text.sections[0].value = format!("Ants: {:?}/{:?}", ant_pop.0, ant_cap.0);
+            text.sections[1].value = format!("\nForagers: {:?}", forager_stats.active);
+            text.sections[2].value = format!("\nNursemaids: {:?}", nursemaid_stats.active);
+            text.sections[3].value = format!("\nIdlers: {:?}", idle_stats.active);
         }
     }
 }

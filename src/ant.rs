@@ -10,6 +10,7 @@ use bevy::{
         system::{Command, SystemState},
     },
     math::Vec3Swizzles,
+    reflect,
 };
 use bevy::{prelude::*, time::common_conditions::on_timer};
 use bevy_rand::prelude::*;
@@ -175,23 +176,28 @@ const ANT_STARTING_MAX_AGE: u64 = 240;
 const ANT_STARTING_CARRY_CAPACITY: i32 = 5;
 const ANT_MOVE_SPEED: f32 = 5.0;
 const ANT_SEC_PER_ROTATION: f32 = 5.0;
-const ANT_I_GRAVITY_FACTOR: f32 = 5.0;
-const ANT_I_GRAVITY_MAXIMUM: f32 = 60.0;
+const ANT_I_GRAVITY_FACTOR: f32 = 25.0;
+const ANT_I_GRAVITY_MAXIMUM: f32 = 50.0;
 
 #[derive(Component)]
 pub struct Lifespan;
 
 //TODO - probably make this keyed to colony entity at some point
 #[derive(Resource, Reflect)]
+#[reflect(Resource)]
 pub struct AntSettings {
     pub carry_capacity: i32,
     pub life_span: u64,
+    pub ant_i_gravity: f32,
+    pub ant_i_gravity_max: f32,
 }
 impl Default for AntSettings {
     fn default() -> Self {
         AntSettings {
             carry_capacity: ANT_STARTING_CARRY_CAPACITY,
             life_span: ANT_STARTING_MAX_AGE,
+            ant_i_gravity: ANT_I_GRAVITY_FACTOR,
+            ant_i_gravity_max: ANT_I_GRAVITY_MAXIMUM,
         }
     }
 }
@@ -346,40 +352,42 @@ fn nav_debug(mut q: Query<(&Transform, &Navigate, &mut VisualDebug)>) {
 
 fn ant_i_gravity(
     ant_locations: DistanceAwareQuery<AntSpatialMarker, &GlobalTransform, With<Ant>>,
-    mut q: Query<&mut Transform, With<Ant>>,
+    ant_settings: Res<AntSettings>,
+    mut q: Query<(&mut Transform, &mut VisualDebug), With<Ant>>,
     time: Res<Time>,
 ) {
-    q.iter_mut().for_each(|mut transform| {
+    q.iter_mut().for_each(|(mut transform, mut dbg)| {
         let mypos = transform.translation.xy();
-        let nearby_ants = ant_locations.within_distance(mypos, 5.0);
+        let nearby_ants = ant_locations.within_distance(mypos, 25.0);
 
         let mut count: f32 = 0.0;
 
-        let mut ejection_vec = nearby_ants
+        let delta = nearby_ants
             .map(|ant_transform| {
                 count += 1.0;
                 let ant_pos = ant_transform.translation().xy();
-                let delta = ant_pos - mypos;
-                let mut magnitude = delta.distance(Vec2::ZERO);
-                magnitude = (magnitude * magnitude).recip();
-                let mut scaled_magnitude = (magnitude * ANT_I_GRAVITY_FACTOR)
-                    .clamp(0.0, ANT_I_GRAVITY_MAXIMUM)
-                    * time.delta_seconds();
-                scaled_magnitude.if_nan(0.0);
-                let mut vector = delta.normalize_or_zero() * scaled_magnitude;
-                vector.if_nan(Vec2::ZERO);
-                vector
+                mypos - ant_pos
             })
             .fold(Vec2::ZERO, |acc, n| acc + n);
         if count == 0.0 {
             return;
         }
-        ejection_vec.if_nan(Vec2::ZERO);
+        let magnitude = delta.distance(Vec2::ZERO);
+        // magnitude = (magnitude * magnitude);
+        // let mut scaled_magnitude = (magnitude * ant_settings.ant_i_gravity)
+        //     .clamp(0.0, ant_settings.ant_i_gravity_max)
+        //     * time.delta_seconds();
+        let mut scaled_magnitude = (magnitude * ant_settings.ant_i_gravity)
+            .clamp(0.0, ant_settings.ant_i_gravity_max)
+            * time.delta_seconds();
+        scaled_magnitude.if_nan(0.0);
+        let mut vector = delta.normalize_or_zero() * scaled_magnitude;
+        vector.if_nan(Vec2::ZERO);
 
-        // let (ejection_distance, dist_from_origin) = (ejection_vec.distance(Vec2::ZERO), (ejection_vec + mypos).distance(Vec2::ZERO));
-        // if ejection_distance > 0.0 { info!("Ant ejected! distance from (prior position, origin) : ({:?},{:?})", ejection_distance, dist_from_origin ); }
+        vector.if_nan(Vec2::ZERO);
+        dbg.add(GizmoDrawOp::line(mypos, mypos + vector, Color::PURPLE));
 
-        transform.translation += ejection_vec.extend(0.0);
+        transform.translation = (mypos + vector).extend(transform.translation.z);
     })
 }
 
@@ -410,7 +418,7 @@ fn select_random_pos_along_bearing(
     {
         base_point_towards_dest = dest;
     }
-    let upper_jitter_threshold = mypos.distance(dest).min(10.0);
+    let upper_jitter_threshold = mypos.distance(dest).clamp(5.1, 10.0).nan_guard(5.1);
     let distance_jitter = rng.gen_range(5.0..upper_jitter_threshold);
     let directional_offset = rng.gen_range(0.0..TAU);
 

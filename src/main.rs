@@ -45,8 +45,8 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: "My Ant Sim".into(),
-                        resizable: false,
-                        resolution: (800.0, 600.0).into(),
+                        resizable: true,
+                        resolution: (3840.0, 2160.0).into(),
                         ..default()
                     }),
                     ..default()
@@ -145,8 +145,8 @@ fn setup(
 
     let mut camera = Camera2dBundle::default();
     camera.projection.scaling_mode = ScalingMode::AutoMin {
-        min_width: 800.0,
-        min_height: 600.0,
+        min_width: 3840.0,
+        min_height: 2160.0,
     };
     camera.camera_2d.clear_color = ClearColorConfig::Custom(Color::Rgba {
         red: 0.,
