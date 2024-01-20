@@ -18,10 +18,17 @@ pub struct MainMenu;
 
 impl Plugin for MainMenuUI {
     fn build(&self, app: &mut App) {
-        app
-        .register_type::<UIAnchorNode>()
-        .add_systems(Update, open_menu_on_start.run_if(run_once()))
-        .add_systems(OnEnter(UIFocus::MainMenu), (generate_ui_anchor_node.run_if(not(resource_exists::<UIAnchorNode>())),apply_deferred, display_main_menu).chain())
+        app.register_type::<UIAnchorNode>()
+            .add_systems(Update, open_menu_on_start.run_if(run_once()))
+            .add_systems(
+                OnEnter(UIFocus::MainMenu),
+                (
+                    generate_ui_anchor_node.run_if(not(resource_exists::<UIAnchorNode>())),
+                    apply_deferred,
+                    display_main_menu,
+                )
+                    .chain(),
+            )
             .add_systems(OnExit(UIFocus::MainMenu), main_menu_teardown)
             .add_systems(
                 Update,
@@ -36,114 +43,122 @@ impl Plugin for MainMenuUI {
 #[derive(Resource, Reflect)]
 pub struct UIAnchorNode(pub Entity);
 
-
 fn open_menu_on_start(mut ui_focus: ResMut<NextState<UIFocus>>) {
     ui_focus.set(UIFocus::MainMenu);
 }
 
 fn generate_ui_anchor_node(mut commands: Commands) {
-    let whole_screen = commands.spawn(NodeBundle {
-        style : Style {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
+    let whole_screen = commands
+        .spawn(NodeBundle {
+            style: Style {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                ..default()
+            },
             ..default()
-        },
-        ..default()
-    }).id();
+        })
+        .id();
     commands.insert_resource(UIAnchorNode(whole_screen));
 }
 
 fn display_main_menu(mut commands: Commands, anchor: Res<UIAnchorNode>) {
-    
+    let root_node = commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    position_type: PositionType::Absolute,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                z_index: ZIndex::Local(30),
+                ..default()
+            },
+            MainMenu,
+            Name::new("Main Menu"),
+        ))
+        .id();
 
-    let root_node = commands.spawn((NodeBundle {
-        style: Style {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            position_type: PositionType::Absolute,
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
+    let menu_layout_node = commands
+        .spawn(NodeBundle {
+            style: Style {
+                width: Val::Percent(40.0),
+                height: Val::Percent(40.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
             ..default()
-        },
-        z_index: ZIndex::Local(30),
-        ..default()
-    }, MainMenu, Name::new("Main Menu"))).id();
+        })
+        .id();
+    let start_button = commands
+        .spawn((
+            ButtonBundle {
+                style: main_menu_button_style(),
+                background_color: BUTTON_COLOR.into(),
+                ..default()
+            },
+            StartButton,
+            Name::new("Start Button"),
+        ))
+        .id();
+    let start_button_label = commands
+        .spawn(TextBundle {
+            text: Text::from_section("Start Game", text_style(26.0, BUTTON_TEXT_COLOR)),
+            ..default()
+        })
+        .id();
+    let toggle_music_button = commands
+        .spawn((
+            ButtonBundle {
+                style: main_menu_button_style(),
+                background_color: BUTTON_COLOR.into(),
+                ..default()
+            },
+            ToggleMusicButton,
+            Name::new("Toggle Music Button"),
+        ))
+        .id();
+    let toggle_music_button_label = commands
+        .spawn(TextBundle {
+            text: Text::from_section("Toggle Music", text_style(26.0, BUTTON_TEXT_COLOR)),
+            ..default()
+        })
+        .id();
 
-    let menu_layout_node = commands.spawn(NodeBundle {
-        style: Style {
-            width: Val::Percent(40.0),
-            height: Val::Percent(40.0),
-            align_self: AlignSelf::Center,
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
-            flex_direction: FlexDirection::Column,
+    let quit_button = commands
+        .spawn((
+            ButtonBundle {
+                style: main_menu_button_style(),
+                background_color: BUTTON_COLOR.into(),
+                ..default()
+            },
+            QuitButton,
+            Name::new("Quit Button"),
+        ))
+        .id();
+    let quit_button_label = commands
+        .spawn(TextBundle {
+            text: Text::from_section("Quit", text_style(26.0, BUTTON_TEXT_COLOR)),
             ..default()
-        },
-        ..default()
-    }).id();
-    let start_button = commands.spawn((
-        ButtonBundle {
-            style: main_menu_button_style(),
-            background_color: BUTTON_COLOR.into(),
-            ..default()
-        },
-        StartButton,
-        Name::new("Start Button"),
-    )).id();
-    let start_button_label = commands.spawn(TextBundle {
-        text: Text::from_section(
-            "Start Game",
-            text_style(26.0, BUTTON_TEXT_COLOR),
-        ),
-        ..default()
-    }).id();
-    let toggle_music_button = commands.spawn((
-        ButtonBundle {
-            style: main_menu_button_style(),
-            background_color: BUTTON_COLOR.into(),
-            ..default()
-        },
-        ToggleMusicButton,
-        Name::new("Toggle Music Button"),
-    )).id();
-    let toggle_music_button_label = commands.spawn(TextBundle {
-        text: Text::from_section(
-            "Toggle Music",
-            text_style(26.0, BUTTON_TEXT_COLOR),
-        ),
-        ..default()
-    }).id();
-    
-    let quit_button = commands.spawn((
-        ButtonBundle {
-            style: main_menu_button_style(),
-            background_color: BUTTON_COLOR.into(),
-            ..default()
-        },
-        QuitButton,
-        Name::new("Quit Button"),
-    )).id();
-    let quit_button_label = commands.spawn(TextBundle {
-        text: Text::from_section(
-            "Quit",
-            text_style(26.0, BUTTON_TEXT_COLOR),
-        ),
-        ..default()
-    }).id();
+        })
+        .id();
     commands.entity(anchor.0).add_child(root_node);
     commands.entity(root_node).add_child(menu_layout_node);
     commands.entity(menu_layout_node).push_children(&[
         start_button,
         toggle_music_button,
-        quit_button
+        quit_button,
     ]);
     commands.entity(start_button).add_child(start_button_label);
-    commands.entity(toggle_music_button).add_child(toggle_music_button_label);
+    commands
+        .entity(toggle_music_button)
+        .add_child(toggle_music_button_label);
     commands.entity(quit_button).add_child(quit_button_label);
     commands.entity(anchor.0).add_child(root_node);
-    
-
-
 }
 fn start_button_onclick(
     start_button: Query<&Interaction, With<StartButton>>,
@@ -194,7 +209,6 @@ fn main_menu_button_style() -> Style {
     Style {
         width: Val::Percent(80.0),
         height: Val::Percent(20.0),
-        align_self: AlignSelf::Center,
         align_items: AlignItems::Center,
         justify_self: JustifySelf::Center,
         justify_content: JustifyContent::Center,
