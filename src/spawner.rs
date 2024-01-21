@@ -1,7 +1,8 @@
 use std::f32::consts::TAU;
 
-use bevy::math::Vec3Swizzles;
 use bevy::prelude::*;
+use bevy::render::texture::{ImageSampler, ImageSamplerDescriptor};
+use bevy::{math::Vec3Swizzles, render::texture::ImageLoaderSettings};
 use bevy_rand::prelude::*;
 use rand::prelude::*;
 
@@ -52,7 +53,9 @@ fn starting_spawner(
                 colony: q.get_single().unwrap(),
             },
             sprite: SpriteBundle {
-                texture: assets.load("spawner.png"),
+                texture: assets.load_with_settings("spawner.png", |s: &mut ImageLoaderSettings| {
+                    s.sampler = ImageSampler::Descriptor(ImageSamplerDescriptor::linear())
+                }),
                 transform: Transform::from_xyz(0., 0., 0.1),
                 ..default()
             },

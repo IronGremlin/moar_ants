@@ -11,6 +11,7 @@ use bevy::{
     },
     math::Vec3Swizzles,
     reflect,
+    render::texture::{ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor},
 };
 use bevy::{prelude::*, time::common_conditions::on_timer};
 use bevy_rand::prelude::*;
@@ -230,7 +231,10 @@ impl Command for AntSpawn {
         if ant_pop.0 < ant_cap.0 {
             let mut pos = Transform::from_xyz(self.home.x, self.home.y, 2.);
             pos.scale = Vec3::from((0.4, 0.4, 1.0));
-            let texture = assets.load("ant.png");
+            let texture = assets.load_with_settings("ant.png", |s: &mut ImageLoaderSettings| {
+                s.sampler = ImageSampler::Descriptor(ImageSamplerDescriptor::linear())
+            });
+
             let sprite = SpriteBundle {
                 texture,
                 transform: pos,

@@ -113,37 +113,42 @@ where
                 ..default()
             })
             .id();
-        let icon_box_category = commands.spawn(NodeBundle{
-            style: Style {
-                margin: UiRect::all(Val::Percent(1.0)),
-                min_height: Val::Px(17.0),
-                min_width: Val::Px(17.0),
-                aspect_ratio: Some(1.0),
+        let icon_box_category = commands
+            .spawn(NodeBundle {
+                style: Style {
+                    margin: UiRect::all(Val::Percent(1.0)),
+                    min_height: Val::Px(17.0),
+                    min_width: Val::Px(17.0),
+                    aspect_ratio: Some(1.0),
+                    ..default()
+                },
                 ..default()
-            },
-            ..default()
-        }).id();
-        let icon_box_effect = commands.spawn(NodeBundle{
-            style: Style {
-                margin: UiRect::all(Val::Percent(1.0)),
-                min_height: Val::Px(17.0),
-                min_width: Val::Px(17.0),
-                aspect_ratio: Some(1.0),
+            })
+            .id();
+        let icon_box_effect = commands
+            .spawn(NodeBundle {
+                style: Style {
+                    margin: UiRect::all(Val::Percent(1.0)),
+                    min_height: Val::Px(17.0),
+                    min_width: Val::Px(17.0),
+                    aspect_ratio: Some(1.0),
+                    ..default()
+                },
                 ..default()
-            },
-            ..default()
-        }).id();
-        let icon_box_cost = commands.spawn(NodeBundle{
-            style: Style {
-                margin: UiRect::all(Val::Percent(1.0)),
-                min_height: Val::Px(17.0),
-                min_width: Val::Px(17.0),
-                aspect_ratio: Some(1.0),
+            })
+            .id();
+        let icon_box_cost = commands
+            .spawn(NodeBundle {
+                style: Style {
+                    margin: UiRect::all(Val::Percent(1.0)),
+                    min_height: Val::Px(17.0),
+                    min_width: Val::Px(17.0),
+                    aspect_ratio: Some(1.0),
+                    ..default()
+                },
                 ..default()
-            },
-            ..default()
-        }).id();
-        
+            })
+            .id();
 
         let upgrade_widget_row_2 = commands
             .spawn(NodeBundle {
@@ -209,20 +214,18 @@ where
             ))
             .id();
         let upgrade_progress_bar_progress_label_layout = commands
-            .spawn((
-                NodeBundle {
-                    style: Style {
-                        width: Val::Percent(100.),
-                        height: Val::Percent(100.),
-                        position_type: PositionType::Absolute,
-                        align_content: AlignContent::Center,
-                        justify_content: JustifyContent::Center,
-                        ..default()
-                    },
-                    z_index: ZIndex::Local(20),
+            .spawn((NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.),
+                    height: Val::Percent(100.),
+                    position_type: PositionType::Absolute,
+                    align_content: AlignContent::Center,
+                    justify_content: JustifyContent::Center,
                     ..default()
                 },
-            ))
+                z_index: ZIndex::Local(20),
+                ..default()
+            },))
             .id();
         let upgrade_progress_bar_label = commands
             .spawn((
@@ -261,38 +264,45 @@ where
 
         let upgrade_button_label = commands
             .spawn(TextBundle {
-                text: Text::from_section(Self::name(), TextStyle {
-                    font_size: 16.0,
-                    color: Color::BLACK.into(),
-                    ..default()
-                }),
+                text: Text::from_section(
+                    Self::name(),
+                    TextStyle {
+                        font_size: 16.0,
+                        color: Color::BLACK.into(),
+                        ..default()
+                    },
+                ),
                 ..default()
             })
             .id();
 
-        commands.entity(upgrade_button).push_children(&[
-            upgrade_widget_layout_root, 
-        ]);
+        commands
+            .entity(upgrade_button)
+            .push_children(&[upgrade_widget_layout_root]);
         commands
             .entity(upgrade_widget_layout_root)
             .push_children(&[upgrade_widget_row_1, upgrade_widget_row_2]);
         commands.entity(upgrade_widget_row_1).push_children(&[
             icon_box_category,
             icon_box_effect,
-            
             upgrade_button_label,
         ]);
         commands.entity(icon_box_category).add_child(category_icon);
         commands.entity(icon_box_effect).add_child(effect_icon);
-        
+
         commands
             .entity(upgrade_widget_row_2)
             .push_children(&[icon_box_cost, upgrade_progress_bar_layout]);
         commands.entity(icon_box_cost).add_child(cost_icon);
         commands
             .entity(upgrade_progress_bar_layout)
-            .push_children(&[upgrade_progress_bar_progress_mask, upgrade_progress_bar_progress_label_layout]);
-        commands.entity(upgrade_progress_bar_progress_label_layout).add_child(upgrade_progress_bar_label);
+            .push_children(&[
+                upgrade_progress_bar_progress_mask,
+                upgrade_progress_bar_progress_label_layout,
+            ]);
+        commands
+            .entity(upgrade_progress_bar_progress_label_layout)
+            .add_child(upgrade_progress_bar_label);
 
         return upgrade_button;
     }
@@ -344,7 +354,7 @@ pub trait AntUpgrade: ColonyUpgrade {
         let upgrades = q.single();
         for mut text in text_q.iter_mut() {
             text.sections[2].value = "".into();
-                //Self::display_effect(&ant_settings, *upgrades.costs.get(&Self::name()).unwrap());
+            //Self::display_effect(&ant_settings, *upgrades.costs.get(&Self::name()).unwrap());
         }
     }
 
@@ -448,7 +458,7 @@ impl ColonyMaxFood {
         if let Some(_) = upgrades.costs.get(&Self::name()) {
             for mut text in text_q.iter_mut() {
                 text.sections[2].value = "".into();
-                    //format!("|Current: {} Next: {}|", maxfood.0, maxfood.0 + Self::val());
+                //format!("|Current: {} Next: {}|", maxfood.0, maxfood.0 + Self::val());
             }
         }
     }

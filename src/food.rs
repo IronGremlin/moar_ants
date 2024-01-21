@@ -1,6 +1,11 @@
 use std::{f32::consts::TAU, time::Duration};
 
-use bevy::{ecs::query::Has, math::Vec3Swizzles, prelude::*};
+use bevy::{
+    ecs::query::Has,
+    math::Vec3Swizzles,
+    prelude::*,
+    render::texture::{ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor},
+};
 use bevy_prng::WyRand;
 use bevy_rand::resource::GlobalEntropy;
 use rand::prelude::*;
@@ -194,7 +199,10 @@ fn process_food_delta(
                 let scale = source_food.0 as f32 / FOOD_CHUNK_MAX_STARTING_AMOUNT as f32;
                 let mut transform = Transform::from_xyz(0., 0., 1.);
                 transform.scale = Vec3::from((scale, scale, 1.0));
-                let texture = assets.load("food_chunk.png");
+                let texture =
+                    assets.load_with_settings("food_chunk.png", |s: &mut ImageLoaderSettings| {
+                        s.sampler = ImageSampler::Descriptor(ImageSamplerDescriptor::linear())
+                    });
                 commands.spawn((
                     FoodQuant(source_food.0),
                     SpriteBundle {
