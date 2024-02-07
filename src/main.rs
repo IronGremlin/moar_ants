@@ -356,10 +356,15 @@ fn populate_display_settings_changes(
         let necessary_scale_factor = nativex as f64 / targetx as f64;
         let ui_scale_factor = targety as f64 / 720.;
         ui_scale.0 = ui_scale_factor;
-        if necessary_scale_factor >= 1.0 {
+        if necessary_scale_factor >= 1.0  && display_settings.fullscreen {
             window
                 .resolution
                 .set_scale_factor_override(Some(necessary_scale_factor));
+        }
+        if !display_settings.fullscreen {
+            window
+                .resolution
+                .set_scale_factor_override(Some(1.0));
         }
     }
 

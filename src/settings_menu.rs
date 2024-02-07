@@ -74,8 +74,6 @@ pub struct UiRange(pub f32);
 #[derive(Component)]
 pub struct FillBar;
 
-
-
 fn instantiate_settings_menu(
     mut commands: Commands,
     mut settings_menu_actions: ResMut<ToggleActions<SettingsMenuUIActions>>,
@@ -324,9 +322,12 @@ fn instantiate_settings_menu(
                         nine_slice_texture: NineSliceUiTexture::from_image(
                             asset_server.load("nine_slice/fullscreen_checkbox.png"),
                         ),
+                        z_index: ZIndex::Local(20),
                         ..default()
                     },
                     UiToggle(true),
+                    Fullscreen,
+                    Interaction::None,
                     Name::new("Fucking checkbox"),
                 ))
                 .add_child(even_dumber_checkbox);
@@ -374,10 +375,7 @@ fn instantiate_settings_menu(
                 display: Display::None,
                 grid_column: GridPlacement::start(1),
                 grid_row: GridPlacement::start(1),
-                grid_template_columns: vec![
-                    GridTrack::px(49.),
-                    GridTrack::px(102.),
-                ],
+                grid_template_columns: vec![GridTrack::px(49.), GridTrack::px(102.)],
                 grid_template_rows: vec![
                     GridTrack::percent(33.),
                     GridTrack::percent(33.),
