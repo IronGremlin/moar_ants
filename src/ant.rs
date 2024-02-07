@@ -21,15 +21,7 @@ use rand::prelude::*;
 use bevy_prng::WyRand;
 
 use crate::{
-    colony::{AntCapacity, AntPopulation, Colony, LaborData, LaborPhase},
-    food::{FoodDeltaEvent, FoodQuant},
-    gametimer::{scaled_time, SimTimer, TickRate},
-    gizmodable::{GizmoDrawOp, GizmoSystemSet, VisualDebug},
-    misc_utility::NaNGuard,
-    scentmap::{self, ScentMap, ScentSettings, ScentType, WeightType},
-    spatial_helper::DistanceAwareQuery,
-    spawner::Spawner,
-    AntSpatialMarker, SoundScape, SpatialMarker,
+    colony::{AntCapacity, AntPopulation, Colony, LaborData, LaborPhase}, food::{FoodDeltaEvent, FoodQuant}, gametimer::{scaled_time, SimTimer, TickRate}, gizmodable::{GizmoDrawOp, GizmoSystemSet, VisualDebug}, misc_utility::NaNGuard, scentmap::{self, ScentMap, ScentSettings, ScentType, WeightType}, spatial_helper::DistanceAwareQuery, spawner::Spawner, AntSpatialMarker, SimState, SoundScape, SpatialMarker, UIFocus
 };
 
 pub struct AntPlugin;
@@ -58,7 +50,7 @@ impl Plugin for AntPlugin {
                         nav_debug,
                     )
                         .before(GizmoSystemSet::GizmoQueueDraw),
-                    (ant_i_gravity, tokyo, navigate_move).chain(),
+                    (ant_i_gravity, tokyo, navigate_move).chain().run_if(in_state(SimState::Playing)),
                 )
                     .chain(),
             )
