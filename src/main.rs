@@ -303,7 +303,9 @@ fn soundscape_processor(
                 source: assets.load(asset_path),
                 settings: PlaybackSettings {
                     mode: bevy::audio::PlaybackMode::Despawn,
-                    volume: bevy::audio::Volume::Relative(VolumeLevel::new(settings.sfx)),
+                    volume: bevy::audio::Volume::Relative(VolumeLevel::new(
+                        2.0 * settings.sfx * rescale_volume_setting(settings.global_user_setting),
+                    )),
                     ..default()
                 },
                 ..default()
@@ -321,16 +323,16 @@ fn display_changed(settings: Res<DisplaySettings>) -> bool {
 
 fn populate_volume_settings_changes(
     mut settings: ResMut<VolumeSettings>,
-    mut global: ResMut<GlobalVolume>,
     mut audio_sinks: Query<(&mut AudioSink, &SoundType)>,
 ) {
     settings.refresh_volume_levels();
+    let chosen_global = rescale_volume_setting(settings.global_user_setting);
     audio_sinks.iter_mut().for_each(|(mut sink, kind)| {
         let vol = match kind {
             SoundType::Music => settings.music_level(),
-            SoundType::SFX => settings.sfx_level(),
+            SoundType::SFX => 2.0 * settings.sfx_level(),
         };
-        sink.set_volume(vol);
+        sink.set_volume(vol * chosen_global);
     });
 }
 fn populate_display_settings_changes(

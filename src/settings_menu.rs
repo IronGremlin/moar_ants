@@ -94,6 +94,7 @@ fn instantiate_settings_menu(
 
     let music_level = volume_settings.music_user_setting;
     let sfx_level = volume_settings.sfx_user_setting;
+    let global_level = volume_settings.global_user_setting;
 
     let settings_root_layout = commands
         .spawn((
@@ -468,7 +469,7 @@ fn instantiate_settings_menu(
     commands
         .entity(audio_settings_sfx_section_header)
         .add_child(audio_settings_sfx_label);
-    let global_bar = make_audio_level_bar(&mut commands, 1, 0.5, GlobalVolumeLevel);
+    let global_bar = make_audio_level_bar(&mut commands, 1, global_level, GlobalVolumeLevel);
 
     let music_bar = make_audio_level_bar(&mut commands, 2, music_level, MusicVolumeLevel);
     let sfx_bar = make_audio_level_bar(&mut commands, 3, sfx_level, SFXVolumeLevel);
@@ -714,6 +715,9 @@ fn watch_audio_bars(
             }
             if music {
                 volume_settings.music_user_setting = range.0;
+            }
+            if global {
+                volume_settings.global_user_setting = range.0;
             }
             if let Ok(mut style) = fill_targets.get_mut(target.0) {
                 style.width = into_pct(range.0);
