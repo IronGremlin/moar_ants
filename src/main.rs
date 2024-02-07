@@ -53,7 +53,7 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: "My Ant Sim".into(),
-                        mode: WindowMode::Fullscreen,
+                        mode: WindowMode::BorderlessFullscreen,
                         resolution: (1280.0, 720.0).into(),
                         ..default()
                     }),
@@ -355,21 +355,19 @@ fn populate_display_settings_changes(
         let ui_scale_factor = targety as f64 / 720.;
         ui_scale.0 = ui_scale_factor;
         if necessary_scale_factor >= 1.0 {
-            window.resolution.set_scale_factor_override(Some(necessary_scale_factor));
-
+            window
+                .resolution
+                .set_scale_factor_override(Some(necessary_scale_factor));
         }
-        
     }
 
-    window
-        .resolution
-        .set(targetx, targety);
+    window.resolution.set(targetx, targety);
     if display_settings.fullscreen {
         window.set_maximized(true);
     };
 
     window.mode = if display_settings.fullscreen {
-        WindowMode::Fullscreen
+        WindowMode::BorderlessFullscreen
     } else {
         WindowMode::Windowed
     };
