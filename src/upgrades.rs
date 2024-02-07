@@ -1,39 +1,47 @@
 use bevy::{prelude::*, utils::HashMap};
 
+use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
 use std::marker::PhantomData;
 
 use crate::{
     ant::AntSettings,
     colony::{AntCapacity, Colony, MaxFood},
     food::FoodQuant,
+    ui_helpers::{px, ProjectLocalStyle, ALL, LARGE, MEDIUM, SMALL},
 };
 
 pub struct UpgradePlugin;
 
 impl Plugin for UpgradePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (AntMaxPop::init, ColonyMaxFood::init, AntCarryCapacity::init)
-                .run_if(when_colony_exists.and_then(run_once())),
-        )
-        .add_systems(
-            Update,
-            (
-                AntMaxPop::upgrade_colony,
-                AntMaxPop::progress_bar_update,
-                AntMaxPop::progress_bar_display_effect,
-                AntMaxPop::set_upgrade_button_able,
-                ColonyMaxFood::upgrade_colony,
-                ColonyMaxFood::progress_bar_update,
-                ColonyMaxFood::progress_bar_display_effect,
-                ColonyMaxFood::set_upgrade_button_able,
-                AntCarryCapacity::upgrade_ants,
-                AntCarryCapacity::progress_bar_update,
-                AntCarryCapacity::progress_bar_display_effect,
-                AntCarryCapacity::set_upgrade_button_able,
-            ),
-        );
+        app.init_resource::<TaggeableResource<Workbench, Vec<Recipe>>>()
+            .add_systems(
+                Update,
+                (
+                    debug_silly_resource,
+                    AntMaxPop::init,
+                    ColonyMaxFood::init,
+                    AntCarryCapacity::init,
+                )
+                    .run_if(when_colony_exists.and_then(run_once())),
+            )
+            .add_systems(
+                Update,
+                (
+                    AntMaxPop::upgrade_colony,
+                    AntMaxPop::progress_bar_update,
+                    AntMaxPop::progress_bar_display_effect,
+                    AntMaxPop::set_upgrade_button_able,
+                    ColonyMaxFood::upgrade_colony,
+                    ColonyMaxFood::progress_bar_update,
+                    ColonyMaxFood::progress_bar_display_effect,
+                    ColonyMaxFood::set_upgrade_button_able,
+                    AntCarryCapacity::upgrade_ants,
+                    AntCarryCapacity::progress_bar_update,
+                    AntCarryCapacity::progress_bar_display_effect,
+                    AntCarryCapacity::set_upgrade_button_able,
+                ),
+            );
     }
 }
 
@@ -47,7 +55,9 @@ pub fn spawn_upgrade_buttons(
         AntCarryCapacity::spawn_button(commands, asset_server),
     ]
 }
-
+fn debug_silly_resource(wut: Res<TaggeableResource<Workbench, Vec<Recipe>>>) {
+    info!("OMG LOL{:?}", wut.val.len());
+}
 fn when_colony_exists(q: Query<&Colony>) -> bool {
     q.get_single().is_ok()
 }
@@ -59,6 +69,18 @@ pub struct ColonyUpgradeButton<T: ColonyUpgrade + Default + Component> {
 #[derive(Component, Default)]
 pub struct ColonyUpgradeProgress<T: ColonyUpgrade + Default + Component> {
     marker: PhantomData<T>,
+}
+
+#[derive(Component)]
+pub struct Recipe;
+
+#[derive(Component, Default)]
+pub struct Workbench;
+
+#[derive(Resource, Default)]
+pub struct TaggeableResource<T, X: Default> {
+    marker: PhantomData<T>,
+    pub val: X,
 }
 
 pub trait ColonyUpgrade
@@ -84,19 +106,25 @@ where
     fn spawn_button(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
         let upgrade_button = commands
             .spawn((
-                ButtonBundle {
-                    background_color: Color::rgb_u8(99, 155, 255).into(),
+                NineSliceUiMaterialBundle {
                     style: Style {
-                        width: Val::Percent(100.),
-                        height: Val::Vh(8.),
-                        min_height: Val::Px(84.0),
-                        min_width: Val::Px(200.0),
-                        aspect_ratio: Some(100.0 / 42.0),
-                        padding: UiRect::all(Val::Px(3.)),
+                        width: px(105.),
+                        height: px(44.),
+                        padding: UiRect {
+                            top: px(5.),
+                            bottom: px(6.),
+                            left: px(5.),
+                            right: px(5.),
+                        },
+                        margin: UiRect::vertical(px(4.)),
                         ..default()
                     },
+                    nine_slice_texture: NineSliceUiTexture::from_image(
+                        asset_server.load("nine_slice/upgrade_card_container_backdrop.png"),
+                    ),
                     ..default()
                 },
+                Interaction::None,
                 Self::button_tag(),
             ))
             .id();
@@ -115,44 +143,31 @@ where
             .id();
         let icon_box_category = commands
             .spawn(NodeBundle {
-                style: Style {
-                    margin: UiRect::all(Val::Percent(1.0)),
-                    min_height: Val::Px(17.0),
-                    min_width: Val::Px(17.0),
-                    aspect_ratio: Some(1.0),
-                    ..default()
-                },
+                style: icon_style(Style::default()),
                 ..default()
             })
             .id();
         let icon_box_effect = commands
             .spawn(NodeBundle {
-                style: Style {
-                    margin: UiRect::all(Val::Percent(1.0)),
-                    min_height: Val::Px(17.0),
-                    min_width: Val::Px(17.0),
-                    aspect_ratio: Some(1.0),
-                    ..default()
-                },
+                style: icon_style(Style::default()),
                 ..default()
             })
             .id();
         let icon_box_cost = commands
             .spawn(NodeBundle {
-                style: Style {
-                    margin: UiRect::all(Val::Percent(1.0)),
-                    min_height: Val::Px(17.0),
-                    min_width: Val::Px(17.0),
-                    aspect_ratio: Some(1.0),
-                    ..default()
-                },
+                style: icon_style(Style::default()),
                 ..default()
             })
             .id();
 
         let upgrade_widget_row_2 = commands
             .spawn(NodeBundle {
-                style: upgrade_card_row(Style::default()),
+                style: Style {
+                    flex_direction: FlexDirection::Row,
+                    height: Val::Percent(45.0),
+                    width: Val::Percent(100.0),
+                    ..default()
+                },
                 ..default()
             })
             .id();
@@ -189,24 +204,24 @@ where
                 style: Style {
                     width: Val::Percent(80.),
                     height: Val::Percent(100.),
-                    border: UiRect::all(Val::Percent(2.0)),
+
                     ..default()
                 },
-                border_color: Color::BLACK.into(),
+
                 ..default()
             })
             .id();
-        let upgrade_progress_bar_progress_mask = commands
+        let upgrade_progress_bar_progress_fill = commands
             .spawn((
                 NodeBundle {
                     style: Style {
                         width: Val::Percent(100.),
                         height: Val::Percent(100.),
-                        position_type: PositionType::Relative,
+                        position_type: PositionType::Absolute,
 
                         ..default()
                     },
-                    background_color: Color::GREEN.into(),
+                    background_color: Color::rgb_u8(106, 190, 48).into(),
                     z_index: ZIndex::Local(10),
                     ..default()
                 },
@@ -214,7 +229,7 @@ where
             ))
             .id();
         let upgrade_progress_bar_progress_label_layout = commands
-            .spawn((NodeBundle {
+            .spawn((NineSliceUiMaterialBundle {
                 style: Style {
                     width: Val::Percent(100.),
                     height: Val::Percent(100.),
@@ -223,6 +238,9 @@ where
                     justify_content: JustifyContent::Center,
                     ..default()
                 },
+                nine_slice_texture: NineSliceUiTexture::from_image(
+                    asset_server.load("nine_slice/upgrade_fill_bar_mask.png"),
+                ),
                 z_index: ZIndex::Local(20),
                 ..default()
             },))
@@ -231,31 +249,14 @@ where
             .spawn((
                 TextBundle {
                     text: Text::from_sections([
-                        TextSection::new(
-                            "0",
-                            TextStyle {
-                                font_size: 32.0,
-                                color: Color::BLACK.into(),
-                                ..default()
-                            },
-                        ),
-                        TextSection::new(
-                            "",
-                            TextStyle {
-                                font_size: 32.0,
-                                color: Color::BLACK.into(),
-                                ..default()
-                            },
-                        ),
-                        TextSection::new(
-                            "",
-                            TextStyle {
-                                font_size: 32.0,
-                                color: Color::BLACK.into(),
-                                ..default()
-                            },
-                        ),
+                        TextSection::new("0", TextStyle::local(SMALL, Color::BLACK)),
+                        TextSection::new("", TextStyle::local(SMALL, Color::BLACK)),
+                        TextSection::new("", TextStyle::local(SMALL, Color::BLACK)),
                     ]),
+                    style: Style {
+                        justify_self: JustifySelf::Center,
+                        ..default()
+                    },
                     ..default()
                 },
                 Self::progress_bar_tag(),
@@ -264,14 +265,7 @@ where
 
         let upgrade_button_label = commands
             .spawn(TextBundle {
-                text: Text::from_section(
-                    Self::name(),
-                    TextStyle {
-                        font_size: 16.0,
-                        color: Color::BLACK.into(),
-                        ..default()
-                    },
-                ),
+                text: Text::from_section(Self::name(), TextStyle::local(6., Color::BLACK)),
                 ..default()
             })
             .id();
@@ -297,7 +291,7 @@ where
         commands
             .entity(upgrade_progress_bar_layout)
             .push_children(&[
-                upgrade_progress_bar_progress_mask,
+                upgrade_progress_bar_progress_fill,
                 upgrade_progress_bar_progress_label_layout,
             ]);
         commands
@@ -594,20 +588,37 @@ fn cubeish(i: i32, flattener: f32, scalar: f32) -> f32 {
     (f * f * (f / flattener)) * scalar
 }
 
-pub fn upgrade_card_container(mut style: Style) -> Style {
-    style.min_height = Val::Px(42.0);
-    style.min_width = Val::Px(100.0);
-    style.height = Val::Percent(100.0);
-    style.width = Val::Percent(100.0);
-    style.aspect_ratio = Some(100.0 / 42.0);
+// width: px(210.),
+// height: px(88.),
+// padding: UiRect {
+//     top: px(5.),
+//     bottom: px(6.),
+//     left: px(5.),
+//     right: px(5.),
+// },
+
+fn upgrade_card_container(mut style: Style) -> Style {
+    style.height = px(33.);
+    style.width = px(95.);
     style.display = Display::Flex;
     style.flex_direction = FlexDirection::Column;
+    style.row_gap = px(2.);
     style
 }
-pub fn upgrade_card_row(mut style: Style) -> Style {
+fn upgrade_card_row(mut style: Style) -> Style {
     style.flex_direction = FlexDirection::Row;
-    style.height = Val::Percent(50.0);
-    style.width = Val::Percent(100.0);
-    style.margin = UiRect::all(Val::Percent(0.0));
+    style.height = px(16.);
+    style.width = ALL;
+    style
+}
+fn icon_style(mut style: Style) -> Style {
+    style.margin = UiRect {
+        top: px(1.),
+        right: px(1.),
+        left: px(0.),
+        bottom: px(0.),
+    };
+    style.height = px(16.0);
+    style.width = px(16.0);
     style
 }

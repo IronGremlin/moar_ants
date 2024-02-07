@@ -1,20 +1,21 @@
 use bevy::app::AppExit;
 use bevy::prelude::*;
-use bevy_inspector_egui::egui::menu;
+use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
+use leafwing_input_manager::{
+    action_state::{ActionState, ActionStateDriver},
+    plugin::ToggleActions,
+    InputManagerBundle,
+};
 
-use crate::{MainMusicTrack, UIFocus};
+use crate::{playerinput::MainMenuUIActions, MainMusicTrack, UIFocus};
 
 pub struct MainMenuUI;
 
 #[derive(Component)]
-struct StartButton;
-#[derive(Component)]
-struct ToggleMusicButton;
-#[derive(Component)]
-struct QuitButton;
-
-#[derive(Component)]
 pub struct MainMenu;
+
+#[derive(Resource, Default)]
+pub struct GameStarted;
 
 impl Plugin for MainMenuUI {
     fn build(&self, app: &mut App) {
@@ -31,10 +32,17 @@ impl Plugin for MainMenuUI {
             )
             .add_systems(OnExit(UIFocus::MainMenu), main_menu_teardown)
             .add_systems(
+                OnEnter(UIFocus::Gamefield),
+                (|mut world: &mut World| {
+                    world.init_resource::<GameStarted>();
+                })
+                .run_if(run_once()),
+            )
+            .add_systems(
                 Update,
                 (
                     quit_button_onclick.run_if(in_state(UIFocus::MainMenu)),
-                    toggle_music_button.run_if(in_state(UIFocus::MainMenu)),
+                    toggle_settings.run_if(in_state(UIFocus::MainMenu)),
                     start_button_onclick.run_if(in_state(UIFocus::MainMenu)),
                 ),
             );
@@ -53,6 +61,8 @@ fn generate_ui_anchor_node(mut commands: Commands) {
             style: Style {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
                 ..default()
             },
             ..default()
@@ -61,7 +71,19 @@ fn generate_ui_anchor_node(mut commands: Commands) {
     commands.insert_resource(UIAnchorNode(whole_screen));
 }
 
-fn display_main_menu(mut commands: Commands, anchor: Res<UIAnchorNode>) {
+fn display_main_menu(
+    mut commands: Commands,
+    anchor: Res<UIAnchorNode>,
+    asset_server: Res<AssetServer>,
+    mut main_menu_actions: ResMut<ToggleActions<MainMenuUIActions>>,
+    game_start: Option<Res<GameStarted>>,
+) {
+    let start_text = if game_start.is_some() {
+        "Resume Game"
+    } else {
+        "Start Game"
+    };
+    main_menu_actions.enabled = true;
     let root_node = commands
         .spawn((
             NodeBundle {
@@ -79,13 +101,14 @@ fn display_main_menu(mut commands: Commands, anchor: Res<UIAnchorNode>) {
             MainMenu,
             Name::new("Main Menu"),
         ))
+        .insert(InputManagerBundle::<MainMenuUIActions>::default())
         .id();
 
     let menu_layout_node = commands
         .spawn(NodeBundle {
             style: Style {
-                width: Val::Percent(40.0),
-                height: Val::Percent(40.0),
+                width: Val::Px(157.0),
+                height: Val::Percent(100.0),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
                 flex_direction: FlexDirection::Column,
@@ -96,119 +119,141 @@ fn display_main_menu(mut commands: Commands, anchor: Res<UIAnchorNode>) {
         .id();
     let start_button = commands
         .spawn((
-            ButtonBundle {
+            NineSliceUiMaterialBundle {
                 style: main_menu_button_style(),
-                background_color: BUTTON_COLOR.into(),
+                nine_slice_texture: NineSliceUiTexture::from_image(
+                    asset_server.load("nine_slice/main_menu_buttons.png"),
+                ),
                 ..default()
             },
-            StartButton,
+            Interaction::None,
             Name::new("Start Button"),
         ))
+        .insert(ActionStateDriver {
+            action: MainMenuUIActions::ExitMainMenu,
+            targets: root_node.into(),
+        })
         .id();
     let start_button_label = commands
         .spawn(TextBundle {
-            text: Text::from_section("Start Game", text_style(26.0, BUTTON_TEXT_COLOR)),
+            text: Text::from_section(start_text, text_style(24.0, BUTTON_TEXT_COLOR)),
             ..default()
         })
         .id();
-    let toggle_music_button = commands
+    let settings_button = commands
         .spawn((
-            ButtonBundle {
+            NineSliceUiMaterialBundle {
                 style: main_menu_button_style(),
-                background_color: BUTTON_COLOR.into(),
+                nine_slice_texture: NineSliceUiTexture::from_image(
+                    asset_server.load("nine_slice/main_menu_buttons.png"),
+                ),
                 ..default()
             },
-            ToggleMusicButton,
-            Name::new("Toggle Music Button"),
+            Interaction::None,
+            Name::new("Settings Menu Button"),
         ))
+        .insert(ActionStateDriver {
+            action: MainMenuUIActions::OpenSettings,
+            targets: root_node.into(),
+        })
         .id();
-    let toggle_music_button_label = commands
+    let settings_button_label = commands
         .spawn(TextBundle {
-            text: Text::from_section("Toggle Music", text_style(26.0, BUTTON_TEXT_COLOR)),
+            text: Text::from_section("Settings", text_style(24.0, BUTTON_TEXT_COLOR)),
             ..default()
         })
         .id();
 
     let quit_button = commands
         .spawn((
-            ButtonBundle {
+            NineSliceUiMaterialBundle {
                 style: main_menu_button_style(),
-                background_color: BUTTON_COLOR.into(),
+                nine_slice_texture: NineSliceUiTexture::from_image(
+                    asset_server.load("nine_slice/main_menu_buttons.png"),
+                ),
                 ..default()
             },
-            QuitButton,
+            Interaction::None,
             Name::new("Quit Button"),
         ))
+        .insert(ActionStateDriver {
+            action: MainMenuUIActions::ExitGame,
+            targets: root_node.into(),
+        })
         .id();
     let quit_button_label = commands
         .spawn(TextBundle {
-            text: Text::from_section("Quit", text_style(26.0, BUTTON_TEXT_COLOR)),
+            text: Text::from_section("Quit", text_style(24.0, BUTTON_TEXT_COLOR)),
             ..default()
         })
         .id();
     commands.entity(anchor.0).add_child(root_node);
     commands.entity(root_node).add_child(menu_layout_node);
-    commands.entity(menu_layout_node).push_children(&[
-        start_button,
-        toggle_music_button,
-        quit_button,
-    ]);
+    commands
+        .entity(menu_layout_node)
+        .push_children(&[start_button, settings_button, quit_button]);
     commands.entity(start_button).add_child(start_button_label);
     commands
-        .entity(toggle_music_button)
-        .add_child(toggle_music_button_label);
+        .entity(settings_button)
+        .add_child(settings_button_label);
     commands.entity(quit_button).add_child(quit_button_label);
     commands.entity(anchor.0).add_child(root_node);
 }
+
 fn start_button_onclick(
-    start_button: Query<&Interaction, With<StartButton>>,
+    q: Query<&ActionState<MainMenuUIActions>>,
     mut next_state: ResMut<NextState<UIFocus>>,
 ) {
-    let button = start_button.single();
-    match button {
-        Interaction::Pressed => {
+    for n in q.iter() {
+        if n.just_pressed(MainMenuUIActions::ExitMainMenu) {
             next_state.set(UIFocus::Gamefield);
         }
-        Interaction::Hovered | Interaction::None => {}
     }
 }
 
 fn quit_button_onclick(
-    quit_button: Query<&Interaction, With<QuitButton>>,
+    q: Query<&ActionState<MainMenuUIActions>>,
     mut exit_event: EventWriter<AppExit>,
 ) {
-    let button = quit_button.single();
-    match button {
-        Interaction::Pressed => exit_event.send(AppExit),
-        Interaction::Hovered | Interaction::None => {}
-    }
-}
-
-fn toggle_music_button(
-    quit_button: Query<&Interaction, With<ToggleMusicButton>>,
-    mut music: Query<&mut AudioSink, With<MainMusicTrack>>,
-) {
-    let button = quit_button.single();
-    match button {
-        Interaction::Pressed => {
-            let _ = music.get_single_mut().map(|x| x.toggle());
+    for n in q.iter() {
+        if n.just_pressed(MainMenuUIActions::ExitGame) {
+            info!("send exit");
+            exit_event.send(AppExit);
         }
-        Interaction::Hovered | Interaction::None => {}
     }
 }
 
-fn main_menu_teardown(mut commands: Commands, main_menu: Query<Entity, With<MainMenu>>) {
+fn toggle_settings(
+    q: Query<&ActionState<MainMenuUIActions>>,
+    mut next_state: ResMut<NextState<UIFocus>>,
+    //mut music: Query<&mut AudioSink, With<MainMusicTrack>>,
+) {
+    for n in q.iter() {
+        if n.just_pressed(MainMenuUIActions::OpenSettings) {
+            next_state.set(UIFocus::SettingsMenu);
+            //let _ = music.get_single_mut().map(|x| x.toggle());
+        }
+    }
+}
+
+fn main_menu_teardown(
+    mut commands: Commands,
+    mut main_menu_actions: ResMut<ToggleActions<MainMenuUIActions>>,
+    main_menu: Query<Entity, With<MainMenu>>,
+) {
+    main_menu_actions.enabled = false;
     for entity in &main_menu {
         commands.entity(entity).despawn_recursive();
     }
 }
+
 const BUTTON_COLOR: Color = Color::BLUE;
 const BUTTON_TEXT_COLOR: Color = Color::BLACK;
 
 fn main_menu_button_style() -> Style {
     Style {
-        width: Val::Percent(80.0),
-        height: Val::Percent(20.0),
+        width: Val::Px(155.0),
+        height: Val::Px(57.0),
         align_items: AlignItems::Center,
         justify_self: JustifySelf::Center,
         justify_content: JustifyContent::Center,

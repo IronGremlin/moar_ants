@@ -66,7 +66,7 @@ impl Plugin for ColonyPlugin {
         app.register_type::<AntPopulation>()
             .register_type::<AntCapacity>()
             .register_type::<MaxFood>()
-            .add_systems(Startup, init_default_colony.run_if(run_once()))
+            .add_systems(Startup, init_default_colony)
             .configure_sets(
                 Update,
                 (

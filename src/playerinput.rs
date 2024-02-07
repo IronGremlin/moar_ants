@@ -1,7 +1,7 @@
 use bevy::{prelude::*, window::PrimaryWindow};
 use leafwing_input_manager::{prelude::*, user_input::InputKind};
 
-use crate::{gametimer::TickRate, MainCamera, SimState, UIFocus};
+use crate::{MainCamera, SimState, UIFocus};
 
 const CAMERA_PAN_SPEED_FACTOR: f32 = 10.0;
 pub struct PlayerInputPlugin;
@@ -10,16 +10,14 @@ impl Plugin for PlayerInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(InputManagerPlugin::<CameraControl>::default())
             .add_plugins(InputManagerPlugin::<GamefieldActions>::default())
+            .add_plugins(InputManagerPlugin::<MainMenuUIActions>::default())
+            .add_plugins(InputManagerPlugin::<SettingsMenuUIActions>::default())
+            .add_plugins(InputManagerPlugin::<DisplaySettingsMenuUIActions>::default())
+            .add_plugins(InputManagerPlugin::<AudioMenuUIActions>::default())
             .add_systems(OnEnter(UIFocus::Gamefield), setup.run_if(run_once()))
             .add_systems(
                 Update,
-                (
-                    pan_camera,
-                    zoom_camera,
-                    user_adjust_sim_speed,
-                    user_toggle_pause,
-                    player_open_menu,
-                )
+                (pan_camera, zoom_camera, user_toggle_pause, player_open_menu)
                     .run_if(in_state(UIFocus::Gamefield)),
             );
     }
@@ -33,11 +31,37 @@ pub enum CameraControl {
 
 #[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
 pub enum GamefieldActions {
-    IncreaseTimeScale,
-    DecreaseTimeScale,
     TogglePause,
     GameFieldClick,
     OpenMainMenu,
+}
+
+#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
+pub enum MainMenuUIActions {
+    ExitMainMenu,
+    ExitGame,
+    OpenSettings,
+    //TODO - OpenCredits,
+}
+
+#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
+pub enum SettingsMenuUIActions {
+    ToggleDisplaySettings,
+    ToggleAudioSettings,
+    ExitSettings,
+}
+
+#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
+pub enum DisplaySettingsMenuUIActions {
+    ToggleResolutionSelection,
+    //TODO Figure some way to represent selection as an action
+    ToggleFullscreen,
+}
+
+#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
+pub enum AudioMenuUIActions {
+    SetMusicVolume,
+    SetSFXVolume,
 }
 
 fn setup(
@@ -66,8 +90,6 @@ fn setup(
         .insert(InputManagerBundle::<GamefieldActions> {
             input_map: InputMap::default()
                 .insert(MouseButton::Left, GamefieldActions::GameFieldClick)
-                .insert(KeyCode::Comma, GamefieldActions::DecreaseTimeScale)
-                .insert(KeyCode::Period, GamefieldActions::IncreaseTimeScale)
                 .insert(KeyCode::Space, GamefieldActions::TogglePause)
                 .insert(KeyCode::Escape, GamefieldActions::OpenMainMenu)
                 .build(),
@@ -111,23 +133,6 @@ fn pan_camera(
                 camera_transform.translation.y +=
                     axis_data.y() * (CAMERA_PAN_SPEED_FACTOR * zoom_scale);
             });
-    }
-}
-
-fn user_adjust_sim_speed(
-    q: Query<&ActionState<GamefieldActions>>,
-    mut rate: ResMut<NextState<TickRate>>,
-    current_rate: Res<State<TickRate>>,
-) {
-    for action in q.iter() {
-        if action.just_pressed(GamefieldActions::IncreaseTimeScale) {
-            info!("speed up");
-            rate.set(current_rate.faster());
-        }
-        if action.just_pressed(GamefieldActions::DecreaseTimeScale) {
-            info!("slow down");
-            rate.set(current_rate.slower())
-        }
     }
 }
 
