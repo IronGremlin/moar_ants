@@ -11,10 +11,7 @@ use bevy_rand::resource::GlobalEntropy;
 use rand::prelude::*;
 
 use crate::{
-    ant::Carried,
-    colony::{Colony, MaxFood},
-    gametimer::SimTimer,
-    SimState, SoundScape, SpatialMarker,
+    ant::Carried, colony::{Colony, MaxFood}, gametimer::SimTimer, misc_utility::NaNGuard, SimState, SoundScape, SpatialMarker
 };
 
 pub struct FoodPlugin;
@@ -56,7 +53,7 @@ impl FoodQuant {
         BASELINE_EXCLUSION_DISTANCE * (self.0 / FOOD_CHUNK_MAX_STARTING_AMOUNT) as f32
     }
     pub fn interaction_distance(&self) -> f32 {
-        (self.exclusion_distance() * 0.5).max(3.0)
+        (self.exclusion_distance() * 0.5).max(5.0)
     }
 }
 

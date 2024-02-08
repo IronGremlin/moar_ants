@@ -21,7 +21,15 @@ use rand::prelude::*;
 use bevy_prng::WyRand;
 
 use crate::{
-    colony::{AntCapacity, AntPopulation, Colony, LaborData, LaborPhase}, food::{FoodDeltaEvent, FoodQuant}, gametimer::{scaled_time, SimTimer, TickRate}, gizmodable::{GizmoDrawOp, GizmoSystemSet, VisualDebug}, misc_utility::NaNGuard, scentmap::{self, ScentMap, ScentSettings, ScentType, WeightType}, spatial_helper::DistanceAwareQuery, spawner::Spawner, AntSpatialMarker, SimState, SoundScape, SpatialMarker, UIFocus
+    colony::{AntCapacity, AntPopulation, Colony, LaborData, LaborPhase},
+    food::{FoodDeltaEvent, FoodQuant},
+    gametimer::{scaled_time, SimTimer, TickRate},
+    gizmodable::{GizmoDrawOp, GizmoSystemSet, VisualDebug},
+    misc_utility::NaNGuard,
+    scentmap::{self, ScentMap, ScentSettings, ScentType, WeightType},
+    spatial_helper::DistanceAwareQuery,
+    spawner::Spawner,
+    AntSpatialMarker, SimState, SoundScape, SpatialMarker, UIFocus,
 };
 
 pub struct AntPlugin;
@@ -50,7 +58,9 @@ impl Plugin for AntPlugin {
                         nav_debug,
                     )
                         .before(GizmoSystemSet::GizmoQueueDraw),
-                    (ant_i_gravity, tokyo, navigate_move).chain().run_if(in_state(SimState::Playing)),
+                    (ant_i_gravity, tokyo, navigate_move)
+                        .chain()
+                        .run_if(in_state(SimState::Playing)),
                 )
                     .chain(),
             )
@@ -325,8 +335,8 @@ fn navigate_move(
             } else {
                 transform.rotate_local_axis(Vec3::Z, -angle_delta);
             }
-
             vec *= scaled_speed;
+
             pos_2d += vec;
 
             transform.translation = Vec3::from((pos_2d, 1.));
@@ -348,13 +358,22 @@ fn nav_debug(mut q: Query<(&Transform, &Navigate, &mut VisualDebug)>) {
 fn ant_i_gravity(
     ant_locations: DistanceAwareQuery<AntSpatialMarker, &GlobalTransform, With<Ant>>,
     ant_settings: Res<AntSettings>,
-    mut q: Query<(&mut Transform, &mut VisualDebug, &mut Drift), With<Ant>>,
+    // Nursmaid ants and idle ants have a tendency to cluster around the nest, and so will generally override drift anyway.
+    // To save work, we will ignore those ants.
+    mut q: Query<
+        (
+            &mut Transform,
+            &mut VisualDebug,
+            &mut Drift,
+        ),
+        (With<Ant>, Without<NursemaidAnt>, Without<IdleAnt>),
+    >,
     time: Res<Time>,
 ) {
     q.iter_mut()
         .for_each(|(mut transform, mut dbg, mut drift)| {
             let mypos = transform.translation.xy();
-            let nearby_ants = ant_locations.within_distance(mypos, 50.0);
+            let nearby_ants = ant_locations.within_distance(mypos, 20.0);
 
             let mut count = 0;
 
@@ -363,8 +382,8 @@ fn ant_i_gravity(
                     count += 1;
                     let antpos = ant_transform.translation().xy();
                     let dist = mypos.distance(antpos);
-                    let magnitude = ((dist * dist).recip() * ant_settings.ant_i_gravity)
-                        .clamp(0.0, ant_settings.ant_i_gravity_max);
+                    let magnitude = ((dist * dist).recip() * ant_settings.ant_i_gravity).max(0.);
+
                     let dir = (mypos - antpos).normalize_or_zero();
                     dir * magnitude
                 })
@@ -381,7 +400,9 @@ fn ant_i_gravity(
             let old_vec = drift.vec * drift.mag;
             let sum_vec = vector + old_vec;
             drift.vec = sum_vec.normalize_or_zero();
-            drift.mag = sum_vec.distance(Vec2::ZERO);
+            drift.mag = sum_vec
+                .distance(Vec2::ZERO)
+                .min(ant_settings.ant_i_gravity_max);
         })
 }
 fn tokyo(mut q: Query<(&mut Transform, &mut VisualDebug, &mut Drift), With<Ant>>, time: Res<Time>) {
@@ -390,7 +411,7 @@ fn tokyo(mut q: Query<(&mut Transform, &mut VisualDebug, &mut Drift), With<Ant>>
             if drift.mag > 0.1 || drift.mag < -0.1 {
                 let max_drift = 0.9 * ANT_MOVE_SPEED;
                 let scaled_magnitude =
-                    (drift.mag.clamp(-max_drift, max_drift) * time.delta_seconds()).nan_guard(0.0);
+                    (drift.mag.clamp(0.0, max_drift) * time.delta_seconds()).nan_guard(0.0);
                 let adj = (scaled_magnitude * drift.vec).nan_guard(Vec2::ZERO);
                 let zed = transform.translation.z;
                 dbg.add(GizmoDrawOp::line(
@@ -399,7 +420,9 @@ fn tokyo(mut q: Query<(&mut Transform, &mut VisualDebug, &mut Drift), With<Ant>>
                     Color::PURPLE,
                 ));
                 transform.translation += adj.extend(zed);
-                drift.mag -= scaled_magnitude * 0.5;
+                // We reduce by the full value of our magnitude scaled to dT instead of the actual amount so that
+                // we always have some downward trend to our accumulated antigrav
+                // drift.mag -= drift.mag * time.delta_seconds();
             }
         })
 }
@@ -724,7 +747,9 @@ fn forager_ant_behavior(
 
                 for (food_ent, food_xform, food_q) in food_in_sight.iter() {
                     let foodpos = food_xform.translation().xy();
-                    if foodpos.distance(mypos) <= food_q.interaction_distance() {
+                    let taxi = (foodpos - mypos).abs().to_array().into_iter().sum();
+                    let this_dist = mypos.distance(foodpos).nan_guard(taxi);
+                    if this_dist <= food_q.interaction_distance() {
                         for child in children.iter() {
                             if let Ok(_) = carried_q.get(*child) {
                                 foodevents.send(FoodDeltaEvent {
@@ -739,8 +764,13 @@ fn forager_ant_behavior(
                             }
                         }
                     } else {
-                        let this_dist = mypos.distance(foodpos);
-                        if this_dist < mypos.distance(pos_of_nearest_chunk) {
+                        let ntaxi = (pos_of_nearest_chunk - mypos)
+                            .abs()
+                            .to_array()
+                            .into_iter()
+                            .sum();
+                        let nearest = mypos.distance(pos_of_nearest_chunk).nan_guard(ntaxi);
+                        if this_dist <= nearest {
                             pos_of_nearest_chunk = foodpos;
                             nav.move_to = Some(pos_of_nearest_chunk);
                             res_behavior = Some(ForagerAnt::FollowingTrail);
