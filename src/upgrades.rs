@@ -4,7 +4,7 @@ use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
 use std::marker::PhantomData;
 
 use crate::{
-    ant::AntSettings,
+    ant::{self, AntSettings},
     colony::{AntCapacity, Colony, MaxFood},
     food::FoodQuant,
     ui_helpers::{px, ProjectLocalStyle, ALL, LARGE, MEDIUM, SMALL},
@@ -14,34 +14,29 @@ pub struct UpgradePlugin;
 
 impl Plugin for UpgradePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<TaggeableResource<Workbench, Vec<Recipe>>>()
-            .add_systems(
-                Update,
-                (
-                    debug_silly_resource,
-                    AntMaxPop::init,
-                    ColonyMaxFood::init,
-                    AntCarryCapacity::init,
-                )
-                    .run_if(when_colony_exists.and_then(run_once())),
-            )
-            .add_systems(
-                Update,
-                (
-                    AntMaxPop::upgrade_colony,
-                    AntMaxPop::progress_bar_update,
-                    AntMaxPop::progress_bar_display_effect,
-                    AntMaxPop::set_upgrade_button_able,
-                    ColonyMaxFood::upgrade_colony,
-                    ColonyMaxFood::progress_bar_update,
-                    ColonyMaxFood::progress_bar_display_effect,
-                    ColonyMaxFood::set_upgrade_button_able,
-                    AntCarryCapacity::upgrade_ants,
-                    AntCarryCapacity::progress_bar_update,
-                    AntCarryCapacity::progress_bar_display_effect,
-                    AntCarryCapacity::set_upgrade_button_able,
-                ),
-            );
+        app.add_systems(
+            Update,
+            (AntMaxPop::init, ColonyMaxFood::init, AntCarryCapacity::init)
+                .run_if(when_colony_exists.and_then(run_once())),
+        )
+        .add_systems(
+            Update,
+            (
+                AntMaxPop::upgrade_colony,
+                AntMaxPop::progress_bar_update,
+                AntMaxPop::progress_bar_display_effect,
+                AntMaxPop::set_upgrade_button_able,
+                ColonyMaxFood::upgrade_colony,
+                ColonyMaxFood::progress_bar_update,
+                ColonyMaxFood::progress_bar_display_effect,
+                ColonyMaxFood::set_upgrade_button_able,
+                AntCarryCapacity::upgrade_ants,
+                AntCarryCapacity::progress_bar_update,
+                AntCarryCapacity::progress_bar_display_effect,
+                AntCarryCapacity::set_upgrade_button_able,
+                AntCarryCapacity::set_maxed.run_if(AntCarryCapacity::is_maxed.and_then(run_once())),
+            ),
+        );
     }
 }
 
@@ -55,9 +50,7 @@ pub fn spawn_upgrade_buttons(
         AntCarryCapacity::spawn_button(commands, asset_server),
     ]
 }
-fn debug_silly_resource(wut: Res<TaggeableResource<Workbench, Vec<Recipe>>>) {
-    info!("OMG LOL{:?}", wut.val.len());
-}
+
 fn when_colony_exists(q: Query<&Colony>) -> bool {
     q.get_single().is_ok()
 }
@@ -70,17 +63,9 @@ pub struct ColonyUpgradeButton<T: ColonyUpgrade + Default + Component> {
 pub struct ColonyUpgradeProgress<T: ColonyUpgrade + Default + Component> {
     marker: PhantomData<T>,
 }
-
-#[derive(Component)]
-pub struct Recipe;
-
 #[derive(Component, Default)]
-pub struct Workbench;
-
-#[derive(Resource, Default)]
-pub struct TaggeableResource<T, X: Default> {
+pub struct ColonyUpgradeEffect<T: ColonyUpgrade + Default + Component> {
     marker: PhantomData<T>,
-    pub val: X,
 }
 
 pub trait ColonyUpgrade
@@ -102,6 +87,9 @@ where
     }
     fn progress_bar_tag() -> ColonyUpgradeProgress<Self> {
         ColonyUpgradeProgress::<Self>::default()
+    }
+    fn effect_tag() -> ColonyUpgradeEffect<Self> {
+        ColonyUpgradeEffect::<Self>::default()
     }
     fn spawn_button(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
         let upgrade_button = commands
@@ -263,9 +251,19 @@ where
             ))
             .id();
 
-        let upgrade_button_label = commands
+        let effect_label = commands
             .spawn(TextBundle {
-                text: Text::from_section(Self::name(), TextStyle::local(6., Color::BLACK)),
+                text: Text::from_sections([
+                    TextSection::new("", TextStyle::local(8., Color::BLACK)),
+                    TextSection::new(" ", TextStyle::local(8., Color::BLACK)),
+                    TextSection::new("", TextStyle::local(8., Color::rgb_u8(106, 190, 48).into())),
+                ]),
+                ..default()
+            })
+            .insert(Self::effect_tag())
+            .insert(Style {
+                align_self: AlignSelf::Center,
+                margin: UiRect::horizontal(Val::Auto),
                 ..default()
             })
             .id();
@@ -279,7 +277,7 @@ where
         commands.entity(upgrade_widget_row_1).push_children(&[
             icon_box_category,
             icon_box_effect,
-            upgrade_button_label,
+            effect_label,
         ]);
         commands.entity(icon_box_category).add_child(category_icon);
         commands.entity(icon_box_effect).add_child(effect_icon);
@@ -336,19 +334,53 @@ where
         }
     }
 }
+pub trait Maxable: ColonyUpgrade {
+    fn max_index() -> i32;
+    fn is_maxed(q: Query<&UpgradeStringIndex, With<Colony>>) -> bool {
+        if let Some(current) = q.get_single().ok().and_then(|n| n.costs.get(&Self::name())) {
+            *current == Self::max_index()
+        } else {
+            false
+        }
+    }
+    fn set_maxed(
+        mut commands: Commands,
+        mut button_q: Query<(&mut Style, &Children), With<ColonyUpgradeButton<Self>>>,
+        mut style_q: Query<&mut Style, Without<ColonyUpgradeButton<Self>>>,
+        upgrade_bar_layout: Query<&Parent, (With<ColonyUpgradeProgress<Self>>, Without<Text>)>,
+        parents: Query<&Parent>,
+    ) {
+        button_q
+            .iter_mut()
+            .take(1)
+            .for_each(|(mut style, children)| {
+                style.height = px(28.);
+                let mut child_style = style_q.get_mut(children[0]).unwrap();
+                child_style.height = px(17.);
+                //Cost row is grandparent of progress bar.
+                let cost_row = parents
+                    .get(upgrade_bar_layout.single().get())
+                    .unwrap()
+                    .get();
+                commands.entity(cost_row).despawn_recursive();
+            })
+    }
+}
 
 pub trait AntUpgrade: ColonyUpgrade {
-    fn display_effect(ant_settings: &AntSettings, idx: i32) -> String;
+    fn display_effect(ant_settings: &AntSettings, idx: i32) -> (String, String);
 
     fn progress_bar_display_effect(
         q: Query<&UpgradeStringIndex, With<Colony>>,
         ant_settings: Res<AntSettings>,
-        mut text_q: Query<&mut Text, With<ColonyUpgradeProgress<Self>>>,
+        mut text_q: Query<&mut Text, With<ColonyUpgradeEffect<Self>>>,
     ) {
         let upgrades = q.single();
         for mut text in text_q.iter_mut() {
-            text.sections[2].value = "".into();
-            //Self::display_effect(&ant_settings, *upgrades.costs.get(&Self::name()).unwrap());
+            let (current, effect) =
+                Self::display_effect(&ant_settings, *upgrades.costs.get(&Self::name()).unwrap());
+            text.sections[0].value = current;
+            text.sections[2].value = effect;
         }
     }
 
@@ -412,16 +444,20 @@ impl ColonyUpgrade for AntCarryCapacity {
         squarish(*cost_index, 5.0, 100.0) as i32
     }
 }
+impl Maxable for AntCarryCapacity {
+    fn max_index() -> i32 {
+        4
+    }
+}
 impl AntUpgrade for AntCarryCapacity {
-    fn display_effect(ant_settings: &AntSettings, idx: i32) -> String {
-        if idx < 4 {
-            format!(
-                "|Current: {:?} Next: {:?}|",
-                ant_settings.carry_capacity,
-                Self::val(idx)
+    fn display_effect(ant_settings: &AntSettings, idx: i32) -> (String, String) {
+        if idx < Self::max_index() {
+            (
+                format!("{:?}", ant_settings.carry_capacity),
+                format!("(+{:?})", Self::val(idx)),
             )
         } else {
-            "MAX: 20".into()
+            (format!("{:?}", ant_settings.carry_capacity), "MAX".into())
         }
     }
     fn do_upgrade(
@@ -446,13 +482,13 @@ impl ColonyMaxFood {
     }
     fn progress_bar_display_effect(
         q: Query<(&UpgradeStringIndex, &MaxFood), With<Colony>>,
-        mut text_q: Query<&mut Text, With<ColonyUpgradeProgress<Self>>>,
+        mut text_q: Query<&mut Text, With<ColonyUpgradeEffect<Self>>>,
     ) {
         let (upgrades, maxfood) = q.single();
         if let Some(_) = upgrades.costs.get(&Self::name()) {
             for mut text in text_q.iter_mut() {
-                text.sections[2].value = "".into();
-                //format!("|Current: {} Next: {}|", maxfood.0, maxfood.0 + Self::val());
+                text.sections[0].value = format!("{:?}", maxfood.0);
+                text.sections[2].value = format!("(+{:?})", Self::val());
             }
         }
     }
@@ -508,17 +544,13 @@ impl AntMaxPop {
     }
     fn progress_bar_display_effect(
         q: Query<(&UpgradeStringIndex, &AntCapacity), With<Colony>>,
-        mut text_q: Query<&mut Text, With<ColonyUpgradeProgress<Self>>>,
+        mut text_q: Query<&mut Text, With<ColonyUpgradeEffect<Self>>>,
     ) {
         let (upgrades, ant_cap) = q.single();
         if let Some(feature_index) = upgrades.costs.get(&Self::name()) {
             for mut text in text_q.iter_mut() {
-                text.sections[2].value = "".into()
-                // format!(
-                //     "|Current: {} Next: {}|",
-                //     ant_cap.0,
-                //     ant_cap.0 + Self::val(*feature_index)
-                // );
+                text.sections[0].value = format!("{:?}", ant_cap.0);
+                text.sections[2].value = format!("(+{:?})", Self::val(*feature_index));
             }
         }
     }
@@ -587,15 +619,6 @@ fn cubeish(i: i32, flattener: f32, scalar: f32) -> f32 {
     let f = i as f32;
     (f * f * (f / flattener)) * scalar
 }
-
-// width: px(210.),
-// height: px(88.),
-// padding: UiRect {
-//     top: px(5.),
-//     bottom: px(6.),
-//     left: px(5.),
-//     right: px(5.),
-// },
 
 fn upgrade_card_container(mut style: Style) -> Style {
     style.height = px(33.);
