@@ -587,7 +587,6 @@ pub fn init_gamefield_ui(
                     bottom: Val::Auto,
                 },
                 flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(-0.5), //This fixes a subtle display error with 9-slice textures where the BG color bleeds through slightly.
                 ..default()
             },
             ..default()
@@ -609,6 +608,7 @@ pub fn init_gamefield_ui(
             style: Style {
                 width: Val::Percent(30.),
                 height: Val::Percent(100.),
+                margin: UiRect::right(Val::Px(-1.0)),
                 justify_content: JustifyContent::FlexEnd,
                 align_items: AlignItems::Center,
                 ..default()
@@ -629,7 +629,6 @@ pub fn init_gamefield_ui(
     let forager_icon_layout = commands
         .spawn(NineSliceUiMaterialBundle {
             style: Style {
-                right: Val::Px(1.), // This fixes a subtle display issue where BG color bleeds through the 9-slice border
                 width: Val::Percent(16.),
                 height: Val::Percent(100.),
                 ..default()
@@ -742,6 +741,7 @@ pub fn init_gamefield_ui(
             style: Style {
                 width: Val::Percent(30.),
                 height: Val::Percent(100.),
+                margin: UiRect::right(Val::Px(-1.0)),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::FlexEnd,
                 ..default()
@@ -762,7 +762,6 @@ pub fn init_gamefield_ui(
     let nursemaid_icon_layout = commands
         .spawn(NineSliceUiMaterialBundle {
             style: Style {
-                right: Val::Px(1.), // This fixes a subtle display issue where BG color bleeds through the 9-slice border
                 width: Val::Percent(16.),
                 height: Val::Percent(100.),
                 ..default()
@@ -872,6 +871,7 @@ pub fn init_gamefield_ui(
             style: Style {
                 width: Val::Percent(30.),
                 height: Val::Percent(100.),
+                margin: UiRect::right(Val::Px(-1.0)),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::FlexEnd,
                 ..default()
@@ -893,7 +893,6 @@ pub fn init_gamefield_ui(
     let idler_icon_layout = commands
         .spawn(NineSliceUiMaterialBundle {
             style: Style {
-                right: Val::Px(1.), // This fixes a subtle display issue where BG color bleeds through the 9-slice border
                 width: Val::Percent(16.),
                 height: Val::Percent(100.),
                 ..default()
