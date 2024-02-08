@@ -169,10 +169,11 @@ pub fn init_gamefield_ui(
         .spawn((
             NodeBundle {
                 style: Style {
+                    left: px(39.),
                     width: ALL,
                     height: ALL,
                     align_self: AlignSelf::Start,
-                    position_type: PositionType::Relative,
+                    position_type: PositionType::Absolute,
                     ..default()
                 },
                 background_color: Color::rgb_u8(106, 190, 48).into(),
@@ -268,10 +269,11 @@ pub fn init_gamefield_ui(
         .spawn((
             NodeBundle {
                 style: Style {
+                    left: px(39.),
                     width: ALL,
                     height: ALL,
                     align_self: AlignSelf::Start,
-                    position_type: PositionType::Relative,
+                    position_type: PositionType::Absolute,
                     ..default()
                 },
                 background_color: Color::rgb_u8(99, 155, 255).into(),
