@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, time::Duration};
 
-use bevy::{prelude::*};
+use bevy::prelude::*;
 
 use crate::{
     ant::{ForagerAnt, IdleAnt, NursemaidAnt},
@@ -1161,31 +1161,6 @@ fn ant_text_update(
         }
         for mut style in style_q.iter_mut() {
             style.width = Val::Percent(100. * (ants.0 as f32 / maxants.0 as f32));
-        }
-    }
-}
-
-fn ant_pop_meter_update(
-    mut food_text: Query<&mut Text, With<GamefieldUIAntPopLabel>>,
-    q_col: Query<
-        (
-            &AntPopulation,
-            &AntCapacity,
-            &LaborData<ForagerAnt>,
-            &LaborData<NursemaidAnt>,
-            &LaborData<IdleAnt>,
-        ),
-        With<Colony>,
-    >,
-) {
-    for mut text in food_text.iter_mut() {
-        if let Ok((ant_pop, ant_cap, forager_stats, nursemaid_stats, idle_stats)) =
-            q_col.get_single()
-        {
-            text.sections[0].value = format!("Ants: {:?}/{:?}", ant_pop.0, ant_cap.0);
-            text.sections[1].value = format!("\nForagers: {:?}", forager_stats.active);
-            text.sections[2].value = format!("\nNursemaids: {:?}", nursemaid_stats.active);
-            text.sections[3].value = format!("\nIdlers: {:?}", idle_stats.active);
         }
     }
 }

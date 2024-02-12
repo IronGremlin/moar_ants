@@ -186,7 +186,7 @@ fn process_food_delta(
     mut q: Query<(&mut FoodQuant, Option<&MaxFood>, Has<Carried>)>,
     mut food_events: EventReader<FoodDeltaEvent>,
 ) {
-    for event in food_events.iter() {
+    for event in food_events.read() {
         if let Ok([(mut source_food, _, was_carried), (mut dest_food, maxfood, _)]) =
             q.get_many_mut([event.food_from, event.food_to])
         {
