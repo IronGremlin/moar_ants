@@ -596,7 +596,7 @@ fn exit_settings_menu(
 ) {
     for n in q.iter() {
         if n.just_pressed(SettingsMenuUIActions::ExitSettings) {
-            next_state.set(UIFocus::Gamefield);
+            next_state.set(UIFocus::MainMenu);
         }
     }
 }
