@@ -4,7 +4,7 @@ use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
 use std::marker::PhantomData;
 
 use crate::{
-    ant::{AntSettings},
+    ant::AntSettings,
     colony::{AntCapacity, Colony, MaxFood},
     food::FoodQuant,
     ui_helpers::{px, ProjectLocalStyle, ALL, SMALL},

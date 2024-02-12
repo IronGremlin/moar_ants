@@ -1,9 +1,7 @@
 
 
 use bevy::{
-    ecs::{
-        system::{EntityCommands},
-    },
+    ecs::system::EntityCommands,
     prelude::*,
 };
 
