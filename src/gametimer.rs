@@ -14,7 +14,7 @@ impl Default for GameClock {
     fn default() -> Self {
         GameClock {
             delta: Duration::new(0, 0),
-            resume_speed: TickRate::Standard,
+            resume_speed: TickRate::X4,
         }
     }
 }
@@ -34,31 +34,8 @@ impl SimTimer {
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum TickRate {
     Paused,
-    Standard,
-    X2,
     #[default]
     X4,
-}
-#[allow(unreachable_patterns)]
-impl TickRate {
-    pub fn faster(&self) -> Self {
-        match self {
-            TickRate::Paused => TickRate::Standard,
-            TickRate::Standard => TickRate::X2,
-            TickRate::X2 => TickRate::X4,
-            TickRate::X4 => TickRate::X4,
-            _ => TickRate::Paused,
-        }
-    }
-    pub fn slower(&self) -> Self {
-        match self {
-            TickRate::Paused => TickRate::Paused,
-            TickRate::Standard => TickRate::Paused,
-            TickRate::X2 => TickRate::Standard,
-            TickRate::X4 => TickRate::X2,
-            _ => TickRate::Paused,
-        }
-    }
 }
 
 pub struct GameTimerPlugin;
@@ -76,9 +53,7 @@ impl Plugin for GameTimerPlugin {
 pub fn scaled_time(rate: &TickRate, duration: Duration) -> Duration {
     let scalar: u64 = match rate {
         TickRate::Paused => 0,
-        TickRate::Standard => 1,
-        TickRate::X2 => 2,
-        TickRate::X4 => 4,
+        _ => 4,
     };
     Duration::from_nanos((duration.as_nanos() as u64 * scalar) as u64)
 }
