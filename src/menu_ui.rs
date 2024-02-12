@@ -7,7 +7,7 @@ use leafwing_input_manager::{
     InputManagerBundle,
 };
 
-use crate::{playerinput::MainMenuUIActions, UIFocus};
+use crate::{playerinput::MainMenuUIActions, ui_helpers::ProjectLocalStyle, UIFocus};
 
 pub struct MainMenuUI;
 
@@ -83,6 +83,8 @@ fn display_main_menu(
     } else {
         "Start Game"
     };
+    let button_texture = asset_server.load("nine_slice/main_menu_buttons.png");
+
     main_menu_actions.enabled = true;
     let root_node = commands
         .spawn((
@@ -117,87 +119,40 @@ fn display_main_menu(
             ..default()
         })
         .id();
-    let start_button = commands
-        .spawn((
-            NineSliceUiMaterialBundle {
-                style: main_menu_button_style(),
-                nine_slice_texture: NineSliceUiTexture::from_image(
-                    asset_server.load("nine_slice/main_menu_buttons.png"),
-                ),
-                ..default()
-            },
-            Interaction::None,
-            Name::new("Start Button"),
-        ))
-        .insert(ActionStateDriver {
+
+    let start_button = main_menu_button(
+        &mut commands,
+        button_texture.clone(),
+        ActionStateDriver {
             action: MainMenuUIActions::ExitMainMenu,
             targets: root_node.into(),
-        })
-        .id();
-    let start_button_label = commands
-        .spawn(TextBundle {
-            text: Text::from_section(start_text, text_style(24.0, Color::BLACK)),
-            ..default()
-        })
-        .id();
-    let settings_button = commands
-        .spawn((
-            NineSliceUiMaterialBundle {
-                style: main_menu_button_style(),
-                nine_slice_texture: NineSliceUiTexture::from_image(
-                    asset_server.load("nine_slice/main_menu_buttons.png"),
-                ),
-                ..default()
-            },
-            Interaction::None,
-            Name::new("Settings Menu Button"),
-        ))
-        .insert(ActionStateDriver {
+        },
+        start_text,
+    );
+    let settings_button = main_menu_button(
+        &mut commands,
+        button_texture.clone(),
+        ActionStateDriver {
             action: MainMenuUIActions::OpenSettings,
             targets: root_node.into(),
-        })
-        .id();
-    let settings_button_label = commands
-        .spawn(TextBundle {
-            text: Text::from_section("Settings", text_style(24.0, Color::BLACK)),
-            ..default()
-        })
-        .id();
-
-    let quit_button = commands
-        .spawn((
-            NineSliceUiMaterialBundle {
-                style: main_menu_button_style(),
-                nine_slice_texture: NineSliceUiTexture::from_image(
-                    asset_server.load("nine_slice/main_menu_buttons.png"),
-                ),
-                ..default()
-            },
-            Interaction::None,
-            Name::new("Quit Button"),
-        ))
-        .insert(ActionStateDriver {
+        },
+        "Settings",
+    );
+    let quit_button = main_menu_button(
+        &mut commands,
+        button_texture.clone(),
+        ActionStateDriver {
             action: MainMenuUIActions::ExitGame,
             targets: root_node.into(),
-        })
-        .id();
-    let quit_button_label = commands
-        .spawn(TextBundle {
-            text: Text::from_section("Quit", text_style(24.0, Color::BLACK)),
-            ..default()
-        })
-        .id();
+        },
+        "Quit",
+    );
+
     commands.entity(anchor.0).add_child(root_node);
     commands.entity(root_node).add_child(menu_layout_node);
     commands
         .entity(menu_layout_node)
         .push_children(&[start_button, settings_button, quit_button]);
-    commands.entity(start_button).add_child(start_button_label);
-    commands
-        .entity(settings_button)
-        .add_child(settings_button_label);
-    commands.entity(quit_button).add_child(quit_button_label);
-    commands.entity(anchor.0).add_child(root_node);
 }
 
 fn start_button_onclick(
@@ -226,14 +181,41 @@ fn quit_button_onclick(
 fn toggle_settings(
     q: Query<&ActionState<MainMenuUIActions>>,
     mut next_state: ResMut<NextState<UIFocus>>,
-    //mut music: Query<&mut AudioSink, With<MainMusicTrack>>,
 ) {
     for n in q.iter() {
         if n.just_pressed(MainMenuUIActions::OpenSettings) {
             next_state.set(UIFocus::SettingsMenu);
-            //let _ = music.get_single_mut().map(|x| x.toggle());
         }
     }
+}
+
+fn main_menu_button(
+    commands: &mut Commands,
+    image: Handle<Image>,
+    action_driver: ActionStateDriver<MainMenuUIActions>,
+    label: impl Into<String>,
+) -> Entity {
+    let button_text = label.into();
+    let button = commands
+        .spawn((
+            NineSliceUiMaterialBundle {
+                style: main_menu_button_style(),
+                nine_slice_texture: NineSliceUiTexture::from_image(image),
+                ..default()
+            },
+            Interaction::None,
+            Name::new(format!("MainMenu: {:?} Button", button_text.clone())),
+        ))
+        .insert(action_driver)
+        .id();
+    let button_label = commands
+        .spawn(TextBundle {
+            text: Text::from_section(button_text, TextStyle::local(24.0, Color::BLACK)),
+            ..default()
+        })
+        .id();
+    commands.entity(button).add_child(button_label);
+    button
 }
 
 fn main_menu_teardown(
@@ -246,7 +228,6 @@ fn main_menu_teardown(
         commands.entity(entity).despawn_recursive();
     }
 }
-
 
 fn main_menu_button_style() -> Style {
     Style {
@@ -264,10 +245,4 @@ fn main_menu_button_style() -> Style {
         ..default()
     }
 }
-fn text_style(size: f32, col: Color) -> TextStyle {
-    TextStyle {
-        font_size: size,
-        color: col,
-        ..default()
-    }
-}
+

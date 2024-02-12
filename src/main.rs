@@ -139,8 +139,7 @@ pub enum UIFocus {
     MainMenu,
     Gamefield,
     SettingsMenu,
-    //This is a very silly workaround for the when we have to re-paint the UI when the window scalefactor changes
-    UiRedraw,
+    Credits
 }
 
 #[derive(Event)]
