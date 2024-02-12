@@ -1,5 +1,4 @@
 use std::{
-    default,
     f32::consts::{PI, TAU},
     marker::PhantomData,
     time::Duration,
@@ -11,7 +10,6 @@ use bevy::{
         system::{Command, SystemState},
     },
     math::Vec3Swizzles,
-    reflect,
     render::texture::{ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor},
 };
 use bevy::{prelude::*, time::common_conditions::on_timer};
@@ -29,7 +27,7 @@ use crate::{
     scentmap::{self, ScentMap, ScentSettings, ScentType, WeightType},
     spatial_helper::DistanceAwareQuery,
     spawner::Spawner,
-    AntSpatialMarker, SimState, SoundScape, SpatialMarker, UIFocus,
+    AntSpatialMarker, SimState, SoundScape, SpatialMarker,
 };
 
 pub struct AntPlugin;
@@ -292,7 +290,7 @@ fn navigate_move(
         .as_secs_f32()
         .clamp(f32::EPSILON, 1.0);
 
-    for (global_transform, mut transform, mut nav) in q.iter_mut() {
+    for (_global_transform, mut transform, mut nav) in q.iter_mut() {
         if let Some(destination) = nav.move_to {
             let mut pos_2d = transform.translation.xy();
             let max_speed = destination.distance(pos_2d);
@@ -371,7 +369,7 @@ fn ant_i_gravity(
     time: Res<Time>,
 ) {
     q.iter_mut()
-        .for_each(|(mut transform, mut dbg, mut drift)| {
+        .for_each(|(transform, _dbg, mut drift)| {
             let mypos = transform.translation.xy();
             let nearby_ants = ant_locations.within_distance(mypos, 20.0);
 
@@ -407,7 +405,7 @@ fn ant_i_gravity(
 }
 fn tokyo(mut q: Query<(&mut Transform, &mut VisualDebug, &mut Drift), With<Ant>>, time: Res<Time>) {
     q.iter_mut()
-        .for_each(|(mut transform, mut dbg, mut drift)| {
+        .for_each(|(mut transform, mut dbg, drift)| {
             if drift.mag > 0.1 || drift.mag < -0.1 {
                 let max_drift = 0.9 * ANT_MOVE_SPEED;
                 let scaled_magnitude =

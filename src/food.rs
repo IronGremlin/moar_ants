@@ -11,7 +11,7 @@ use bevy_rand::resource::GlobalEntropy;
 use rand::prelude::*;
 
 use crate::{
-    ant::Carried, colony::{Colony, MaxFood}, gametimer::SimTimer, misc_utility::NaNGuard, SimState, SoundScape, SpatialMarker
+    ant::Carried, colony::{Colony, MaxFood}, gametimer::SimTimer, SimState, SoundScape, SpatialMarker
 };
 
 pub struct FoodPlugin;

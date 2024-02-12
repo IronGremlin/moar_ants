@@ -1,8 +1,6 @@
 use bevy::{
-    audio,
     ecs::system::SystemParam,
     prelude::*,
-    text,
     ui::RelativeCursorPosition,
     window::{PrimaryWindow, WindowMode},
 };
@@ -17,7 +15,7 @@ use leafwing_input_manager::{
 use crate::{
     menu_ui::UIAnchorNode,
     playerinput::{AudioMenuUIActions, DisplaySettingsMenuUIActions, SettingsMenuUIActions},
-    ui_helpers::{into_pct, px, ProjectLocalStyle, UICommandsExt, ALL},
+    ui_helpers::{into_pct, px, ProjectLocalStyle, UICommandsExt, ALL, MEDIUM},
     DisplaySettings, UIFocus, VolumeSettings,
 };
 
@@ -83,12 +81,6 @@ fn instantiate_settings_menu(
     anchor: Res<UIAnchorNode>,
 ) {
     settings_menu_actions.enabled = true;
-    // sizes from our ui mockup at 1600x900 px
-    let big_width: f32 = 320.;
-    let big_height: f32 = 180.;
-    let inner_width: f32 = 281.;
-    let inner_height: f32 = 126.;
-    let font_size_base: f32 = 12.; // 16 * (1080 / 900) - figure out a better way to handle this w/ dynamic res.
 
     let music_level = volume_settings.music_user_setting;
     let sfx_level = volume_settings.sfx_user_setting;
@@ -182,7 +174,7 @@ fn instantiate_settings_menu(
         .id();
     let display_settings_label = commands
         .spawn(TextBundle {
-            text: Text::from_section("Display", TextStyle::local(font_size_base, Color::WHITE)),
+            text: Text::from_section("Display", TextStyle::local(MEDIUM, Color::WHITE)),
             style: Style {
                 margin: UiRect::bottom(px(5.)),
                 ..default()
@@ -220,7 +212,7 @@ fn instantiate_settings_menu(
         .id();
     let audio_settings_label = commands
         .spawn(TextBundle {
-            text: Text::from_section("Audio", TextStyle::local(font_size_base, Color::WHITE)),
+            text: Text::from_section("Audio", TextStyle::local(MEDIUM, Color::WHITE)),
             style: Style {
                 margin: UiRect::bottom(px(5.)),
                 ..default()
@@ -272,16 +264,13 @@ fn instantiate_settings_menu(
         })
         .id();
     let display_settings_fullscreen_label = commands
-        .make_text(
-            "FullScreen:",
-            TextStyle::local(font_size_base, Color::BLACK),
-        )
+        .make_text("FullScreen:", TextStyle::local(MEDIUM, Color::BLACK))
         .id();
     commands
         .entity(display_settings_fullscreen_section_header)
         .add_child(display_settings_fullscreen_label);
     let even_dumber_checkbox = commands.make_icon("green_check_icon.png".into());
-    let insert = commands.entity(even_dumber_checkbox).insert(Style {
+    commands.entity(even_dumber_checkbox).insert(Style {
         width: into_pct(0.5),
         height: into_pct(0.5),
         align_self: AlignSelf::Center,
@@ -355,10 +344,7 @@ fn instantiate_settings_menu(
         })
         .id();
     let display_settings_resolution_label = commands
-        .make_text(
-            "Resolution:",
-            TextStyle::local(font_size_base, Color::BLACK),
-        )
+        .make_text("Resolution:", TextStyle::local(MEDIUM, Color::BLACK))
         .id();
     commands
         .entity(display_settings_resolution_section_header)
@@ -416,7 +402,7 @@ fn instantiate_settings_menu(
         })
         .id();
     let audio_settings_global_label = commands
-        .make_text(" Global:", TextStyle::local(font_size_base, Color::BLACK))
+        .make_text(" Global:", TextStyle::local(MEDIUM, Color::BLACK))
         .id();
     commands
         .entity(audio_settings_global_section_header)
@@ -442,7 +428,7 @@ fn instantiate_settings_menu(
         })
         .id();
     let audio_settings_music_label = commands
-        .make_text(" Music:", TextStyle::local(font_size_base, Color::BLACK))
+        .make_text(" Music:", TextStyle::local(MEDIUM, Color::BLACK))
         .id();
     commands
         .entity(audio_settings_music_section_header)
@@ -462,7 +448,7 @@ fn instantiate_settings_menu(
         })
         .id();
     let audio_settings_sfx_label = commands
-        .make_text(" SFX:", TextStyle::local(font_size_base, Color::BLACK))
+        .make_text(" SFX:", TextStyle::local(MEDIUM, Color::BLACK))
         .id();
     commands
         .entity(audio_settings_sfx_section_header)
@@ -502,7 +488,7 @@ fn instantiate_settings_menu(
         .id();
 
     let exit_button_label = commands
-        .make_text("Exit", TextStyle::local(font_size_base, Color::WHITE))
+        .make_text("Exit", TextStyle::local(MEDIUM, Color::WHITE))
         .id();
     commands.entity(anchor.0).add_child(settings_root_layout);
     commands.entity(settings_root_layout).add_child(card_layout);
@@ -616,7 +602,7 @@ fn exit_settings_menu(
 }
 
 fn make_audio_level_bar(
-    mut commands: &mut Commands,
+    commands: &mut Commands,
     row: i16,
     level: f32,
     comp: impl Component,
@@ -724,7 +710,7 @@ fn watch_audio_bars(
 }
 
 fn make_resolution_selection_component(
-    mut commands: &mut Commands,
+    commands: &mut Commands,
     resolution_options: Vec<(f32, f32)>,
     current: (f32, f32),
 ) -> Entity {

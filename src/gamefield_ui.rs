@@ -1,6 +1,6 @@
-use std::{borrow::BorrowMut, default, marker::PhantomData, time::Duration};
+use std::{marker::PhantomData, time::Duration};
 
-use bevy::{prelude::*, text::TextLayoutInfo};
+use bevy::{prelude::*};
 
 use crate::{
     ant::{ForagerAnt, IdleAnt, NursemaidAnt},

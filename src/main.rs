@@ -16,12 +16,12 @@ mod spawner;
 mod ui_helpers;
 mod upgrades;
 
-use std::marker::PhantomData;
+
 use std::time::Duration;
 
 use ant::AntPlugin;
 use bevy::audio::VolumeLevel;
-use bevy::ecs::system::{Command, SystemId};
+use bevy::ecs::system::{Command};
 use bevy::window::WindowMode;
 use bevy::winit::WinitWindows;
 use bevy::{
@@ -327,7 +327,7 @@ fn populate_volume_settings_changes(
 ) {
     settings.refresh_volume_levels();
     let chosen_global = rescale_volume_setting(settings.global_user_setting);
-    audio_sinks.iter_mut().for_each(|(mut sink, kind)| {
+    audio_sinks.iter_mut().for_each(|(sink, kind)| {
         let vol = match kind {
             SoundType::Music => settings.music_level(),
             SoundType::SFX => 2.0 * settings.sfx_level(),
@@ -351,7 +351,7 @@ fn populate_display_settings_changes(
     let targetx = display_settings.resolution.0;
     let targety = display_settings.resolution.1;
 
-    if let Some((rx, ry)) = screen_size {
+    if let Some((rx, _ry)) = screen_size {
         let nativex = rx as f32;
         let necessary_scale_factor = nativex as f64 / targetx as f64;
         let ui_scale_factor = targety as f64 / 720.;

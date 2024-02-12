@@ -7,7 +7,7 @@ use leafwing_input_manager::{
     InputManagerBundle,
 };
 
-use crate::{playerinput::MainMenuUIActions, MainMusicTrack, UIFocus};
+use crate::{playerinput::MainMenuUIActions, UIFocus};
 
 pub struct MainMenuUI;
 
@@ -33,7 +33,7 @@ impl Plugin for MainMenuUI {
             .add_systems(OnExit(UIFocus::MainMenu), main_menu_teardown)
             .add_systems(
                 OnEnter(UIFocus::Gamefield),
-                (|mut world: &mut World| {
+                (|world: &mut World| {
                     world.init_resource::<GameStarted>();
                 })
                 .run_if(run_once()),
