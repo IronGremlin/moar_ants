@@ -136,7 +136,7 @@ fn display_main_menu(
         .id();
     let start_button_label = commands
         .spawn(TextBundle {
-            text: Text::from_section(start_text, text_style(24.0, BUTTON_TEXT_COLOR)),
+            text: Text::from_section(start_text, text_style(24.0, Color::BLACK)),
             ..default()
         })
         .id();
@@ -159,7 +159,7 @@ fn display_main_menu(
         .id();
     let settings_button_label = commands
         .spawn(TextBundle {
-            text: Text::from_section("Settings", text_style(24.0, BUTTON_TEXT_COLOR)),
+            text: Text::from_section("Settings", text_style(24.0, Color::BLACK)),
             ..default()
         })
         .id();
@@ -183,7 +183,7 @@ fn display_main_menu(
         .id();
     let quit_button_label = commands
         .spawn(TextBundle {
-            text: Text::from_section("Quit", text_style(24.0, BUTTON_TEXT_COLOR)),
+            text: Text::from_section("Quit", text_style(24.0, Color::BLACK)),
             ..default()
         })
         .id();
@@ -247,8 +247,6 @@ fn main_menu_teardown(
     }
 }
 
-const BUTTON_COLOR: Color = Color::BLUE;
-const BUTTON_TEXT_COLOR: Color = Color::BLACK;
 
 fn main_menu_button_style() -> Style {
     Style {
