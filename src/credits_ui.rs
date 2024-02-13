@@ -1,9 +1,8 @@
 use bevy::{
-    ecs::system::SystemParam, prelude::*, ui::RelativeCursorPosition, window::PrimaryWindow,
+    prelude::*, ui::RelativeCursorPosition,
 };
 
 use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
-use leafwing_input_manager::user_input::InputKind::MouseWheel;
 use leafwing_input_manager::{
     action_state::{ActionState, ActionStateDriver},
     axislike::SingleAxis,
@@ -15,11 +14,8 @@ use leafwing_input_manager::{
 
 use crate::{
     menu_ui::UIAnchorNode,
-    playerinput::{
-        AudioMenuUIActions, CreditsUIActions, DisplaySettingsMenuUIActions, SettingsMenuUIActions,
-    },
-    ui_helpers::{into_pct, px, ProjectLocalStyle, UICommandsExt, ALL, LARGE, MEDIUM},
-    DisplaySettings, UIFocus, VolumeSettings,
+    playerinput::CreditsUIActions,
+    ui_helpers::{px, ProjectLocalStyle, UICommandsExt, ALL, LARGE, MEDIUM}, UIFocus,
 };
 
 pub struct CreditsPlugin;
