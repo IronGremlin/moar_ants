@@ -1,6 +1,4 @@
-use bevy::{
-    prelude::*, ui::RelativeCursorPosition,
-};
+use bevy::{prelude::*, ui::RelativeCursorPosition};
 
 use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
 use leafwing_input_manager::{
@@ -15,7 +13,8 @@ use leafwing_input_manager::{
 use crate::{
     menu_ui::UIAnchorNode,
     playerinput::CreditsUIActions,
-    ui_helpers::{px, ProjectLocalStyle, UICommandsExt, ALL, LARGE, MEDIUM}, UIFocus,
+    ui_helpers::{px, ProjectLocalStyle, UICommandsExt, ALL, LARGE, MEDIUM},
+    UIFocus,
 };
 
 pub struct CreditsPlugin;
@@ -71,7 +70,6 @@ fn instantiate_credits_ui(
     asset_server: Res<AssetServer>,
     anchor: Res<UIAnchorNode>,
 ) {
-    let thick_bar = asset_server.load("nine_slice/thick_credits_bar.png");
     let thin_bar = asset_server.load("nine_slice/thin_credits_bar.png");
     settings_menu_actions.enabled = true;
     let credits_layout_container = commands
@@ -189,7 +187,7 @@ fn instantiate_credits_ui(
     commands.entity(credits_window).add_child(credits_container);
     commands.entity(scroll_bar).add_child(scroll_bar_handle);
     for entry in get_entries().iter() {
-        let child = entry.make_entry(&mut commands, thick_bar.clone(), thin_bar.clone());
+        let child = entry.make_entry(&mut commands, thin_bar.clone());
         commands.entity(credits_container).add_child(child);
     }
     commands.entity(credits_container).add_child(exit_button);
@@ -324,12 +322,7 @@ impl CreditEntry {
     fn new(title: &'static str, content: &'static str) -> Self {
         Self { title, content }
     }
-    fn make_entry(
-        &self,
-        commands: &mut Commands,
-        thick_bar: Handle<Image>,
-        thin_bar: Handle<Image>,
-    ) -> Entity {
+    fn make_entry(&self, commands: &mut Commands, thin_bar: Handle<Image>) -> Entity {
         let credit_entry_layout = commands
             .spawn(NodeBundle {
                 style: Style {
@@ -364,11 +357,11 @@ impl CreditEntry {
         let header_underline = commands
             .spawn(NineSliceUiMaterialBundle {
                 style: Style {
-                    height: px(10.),
+                    height: px(5.),
                     width: ALL,
                     ..default()
                 },
-                nine_slice_texture: NineSliceUiTexture::from_image(thick_bar),
+                nine_slice_texture: NineSliceUiTexture::from_image(thin_bar),
                 ..default()
             })
             .id();
@@ -397,20 +390,7 @@ impl CreditEntry {
                 ..default()
             })
             .id();
-        let section_underline = commands
-            .spawn(NineSliceUiMaterialBundle {
-                style: Style {
-                    height: px(5.),
-                    width: ALL,
-                    ..default()
-                },
-                nine_slice_texture: NineSliceUiTexture::from_image(thin_bar),
-                ..default()
-            })
-            .id();
-        commands
-            .entity(section_layout)
-            .push_children(&[section, section_underline]);
+        commands.entity(section_layout).push_children(&[section]);
         commands
             .entity(credit_entry_layout)
             .push_children(&[header_layout, section_layout]);
@@ -423,11 +403,18 @@ fn get_entries() -> Vec<CreditEntry> {
     vec![
         CreditEntry::new(
             "
+Game Design, Code, and Art 
+",
+            "
+Justin Johnson
+",
+        ),
+        CreditEntry::new(
+            "
 Sound
 ",
             "
 Stephen Ancona   Justin Johnson
- 
 ",
         ),
         CreditEntry::new(
@@ -438,7 +425,6 @@ Music
 \"Limit 70\" -  Kevin MacLeod (incompetech.com)
 Licensed under Creative Commons: By Attribution 4.0 License
 http://creativecommons.org/licenses/by/4.0/
- 
 ",
         ),
         CreditEntry::new(
@@ -450,15 +436,7 @@ Adrienne Pasta    Stephen Ancona    Jeff Crowl
 A. Kerr
 
 The wonderful humans over at the Bevy Discord Server
- 
-",
-        ),
-        CreditEntry::new(
-            "
-The Whole Rest of It
-",
-            "
-Justin Johnson
+
  
 ",
         ),
