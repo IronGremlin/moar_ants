@@ -11,7 +11,10 @@ use bevy_rand::resource::GlobalEntropy;
 use rand::prelude::*;
 
 use crate::{
-    ant::Carried, colony::{Colony, MaxFood}, gametimer::SimTimer, SimState, SoundScape, SpatialMarker
+    ant::Carried,
+    colony::{Colony, MaxFood},
+    gametimer::SimTimer,
+    SimState, SoundScape, SpatialMarker,
 };
 
 pub struct FoodPlugin;
@@ -164,7 +167,8 @@ fn spawn_first_chunk(
 
 fn scale_food(mut q: Query<(&mut Transform, &FoodQuant), With<Sprite>>) {
     q.iter_mut().for_each(|(mut transform, quant)| {
-        let scale = quant.0 as f32 / FOOD_CHUNK_MAX_STARTING_AMOUNT as f32;
+        let mut scale = quant.0 as f32 / FOOD_CHUNK_MAX_STARTING_AMOUNT as f32;
+        scale = scale * scale * scale; //Cube it to give a more fun curve
         transform.scale = Vec3::from((scale, scale, 1.0));
     });
 }
@@ -191,7 +195,7 @@ fn process_food_delta(
             q.get_many_mut([event.food_from, event.food_to])
         {
             source_food.take_food(&mut dest_food, event.requested, maxfood.map(|x| x.0));
-
+            // If we are an ant carrying food, and we tried to drop it off but the destination was full
             if was_carried && source_food.0 > 0 {
                 let scale = source_food.0 as f32 / FOOD_CHUNK_MAX_STARTING_AMOUNT as f32;
                 let mut transform = Transform::from_xyz(0., 0., 1.);

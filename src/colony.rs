@@ -80,7 +80,7 @@ impl Plugin for ColonyPlugin {
                 Update,
                 (
                     labor_census.in_set(LaborPhase::TakeCensus),
-                    request_nursemaids.in_set(LaborPhase::AssignRoles),
+                    request_nursemaids.before(LaborPhase::TakeCensus),
                 ),
             );
     }
@@ -131,7 +131,7 @@ fn labor_census(
     idle_stats.active = idle;
     nursemaid_stats.active = nursemaids;
     forager_stats.active = foragers;
-    forager_stats.requested = (max_food.0 - food.0) / ant_settings.carry_capacity;
+forager_stats.requested = (max_food.0 - food.0) / ant_settings.carry_capacity;
 }
 
 fn request_nursemaids(

@@ -6,6 +6,7 @@ use std::{
 
 use bevy::{
     ecs::{
+        entity,
         query::Has,
         system::{Command, SystemState},
     },
@@ -39,10 +40,7 @@ impl Plugin for AntPlugin {
             .add_systems(
                 Update,
                 (
-                    task_idlers
-                        .pipe(task_foragers)
-                        .pipe(task_nursemaids)
-                        .in_set(LaborPhase::Task),
+                    task_ants.in_set(LaborPhase::Task),
                     (
                         idle_ant_behavior,
                         nursmaid_ant_behavior,
@@ -212,7 +210,6 @@ struct AntSpawn {
 }
 impl Command for AntSpawn {
     fn apply(self, world: &mut World) {
-        //mut q_colony: Query<(&AntCapacity, &mut AntPopulation), With<Colony>>
         let mut state: SystemState<(
             Commands,
             Res<AntSettings>,
@@ -359,70 +356,64 @@ fn ant_i_gravity(
     // Nursmaid ants and idle ants have a tendency to cluster around the nest, and so will generally override drift anyway.
     // To save work, we will ignore those ants.
     mut q: Query<
-        (
-            &mut Transform,
-            &mut VisualDebug,
-            &mut Drift,
-        ),
+        (&mut Transform, &mut VisualDebug, &mut Drift),
         (With<Ant>, Without<NursemaidAnt>, Without<IdleAnt>),
     >,
     time: Res<Time>,
 ) {
-    q.iter_mut()
-        .for_each(|(transform, _dbg, mut drift)| {
-            let mypos = transform.translation.xy();
-            let nearby_ants = ant_locations.within_distance(mypos, 20.0);
+    q.iter_mut().for_each(|(transform, _dbg, mut drift)| {
+        let mypos = transform.translation.xy();
+        let nearby_ants = ant_locations.within_distance(mypos, 20.0);
 
-            let mut count = 0;
+        let mut count = 0;
 
-            let big_vec = nearby_ants
-                .map(|ant_transform| {
-                    count += 1;
-                    let antpos = ant_transform.translation().xy();
-                    let dist = mypos.distance(antpos);
-                    let magnitude = ((dist * dist).recip() * ant_settings.ant_i_gravity).max(0.);
+        let big_vec = nearby_ants
+            .map(|ant_transform| {
+                count += 1;
+                let antpos = ant_transform.translation().xy();
+                let dist = mypos.distance(antpos);
+                let magnitude = ((dist * dist).recip() * ant_settings.ant_i_gravity).max(0.);
 
-                    let dir = (mypos - antpos).normalize_or_zero();
-                    dir * magnitude
-                })
-                .fold(Vec2::ZERO, |acc, n| acc + n);
+                let dir = (mypos - antpos).normalize_or_zero();
+                dir * magnitude
+            })
+            .fold(Vec2::ZERO, |acc, n| acc + n);
 
-            let delta = big_vec.distance(Vec2::ZERO);
-            let mut scaled_magnitude = delta * time.delta_seconds();
+        let delta = big_vec.distance(Vec2::ZERO);
+        let mut scaled_magnitude = delta * time.delta_seconds();
 
-            scaled_magnitude.if_nan(0.0);
-            let mut vector = big_vec.normalize_or_zero() * scaled_magnitude;
-            vector.if_nan(Vec2::ZERO);
+        scaled_magnitude.if_nan(0.0);
+        let mut vector = big_vec.normalize_or_zero() * scaled_magnitude;
+        vector.if_nan(Vec2::ZERO);
 
-            vector.if_nan(Vec2::ZERO);
-            let old_vec = drift.vec * drift.mag;
-            let sum_vec = vector + old_vec;
-            drift.vec = sum_vec.normalize_or_zero();
-            drift.mag = sum_vec
-                .distance(Vec2::ZERO)
-                .min(ant_settings.ant_i_gravity_max);
-        })
+        vector.if_nan(Vec2::ZERO);
+        let old_vec = drift.vec * drift.mag;
+        let sum_vec = vector + old_vec;
+        drift.vec = sum_vec.normalize_or_zero();
+        drift.mag = sum_vec
+            .distance(Vec2::ZERO)
+            .min(ant_settings.ant_i_gravity_max);
+    })
 }
 fn tokyo(mut q: Query<(&mut Transform, &mut VisualDebug, &mut Drift), With<Ant>>, time: Res<Time>) {
-    q.iter_mut()
-        .for_each(|(mut transform, mut dbg, drift)| {
-            if drift.mag > 0.1 || drift.mag < -0.1 {
-                let max_drift = 0.9 * ANT_MOVE_SPEED;
-                let scaled_magnitude =
-                    (drift.mag.clamp(0.0, max_drift) * time.delta_seconds()).nan_guard(0.0);
-                let adj = (scaled_magnitude * drift.vec).nan_guard(Vec2::ZERO);
-                let zed = transform.translation.z;
-                dbg.add(GizmoDrawOp::line(
-                    transform.translation.xy(),
-                    transform.translation.xy() + drift.vec * drift.mag,
-                    Color::PURPLE,
-                ));
-                transform.translation += adj.extend(zed);
-                // We reduce by the full value of our magnitude scaled to dT instead of the actual amount so that
-                // we always have some downward trend to our accumulated antigrav
-                // drift.mag -= drift.mag * time.delta_seconds();
-            }
-        })
+    q.iter_mut().for_each(|(mut transform, mut dbg, drift)| {
+        if drift.mag > 0.1 || drift.mag < -0.1 {
+            let max_drift = 0.9 * ANT_MOVE_SPEED;
+            let scaled_magnitude =
+                (drift.mag.clamp(0.0, max_drift) * time.delta_seconds()).nan_guard(0.0);
+            let adj = (scaled_magnitude * drift.vec).nan_guard(Vec2::ZERO);
+            let zed = transform.translation.z;
+            dbg.add(GizmoDrawOp::line(
+                transform.translation.xy(),
+                transform.translation.xy() + drift.vec * drift.mag,
+                Color::PURPLE,
+            ));
+            transform.translation += adj.extend(zed);
+            // We reduce by the full value of our magnitude scaled to dT instead of the actual amount so that
+            // we always have some downward trend to our accumulated antigrav
+            // drift.mag -= drift.mag * time.delta_seconds();
+        }
+    })
 }
 
 fn select_random_wander_pos(
@@ -494,85 +485,73 @@ fn ant_vagrancy_check(
     }
 }
 
-struct AntVaccancies {
-    nursemaids: i32,
-    foragers: i32,
-}
-fn task_idlers(
+fn task_ants(
     mut commands: Commands,
     labor_q: Query<(
         &LaborData<ForagerAnt>,
         &LaborData<NursemaidAnt>,
         &LaborData<IdleAnt>,
     )>,
-    q: Query<Entity, (With<IdleAnt>, With<Ant>)>,
-) -> Result<AntVaccancies, ()> {
+    idle_ants: Query<
+        Entity,
+        (
+            With<Ant>,
+            With<IdleAnt>,
+            Without<NursemaidAnt>,
+            Without<ForagerAnt>,
+        ),
+    >,
+    nursemaid_ants: Query<
+        Entity,
+        (
+            With<Ant>,
+            With<NursemaidAnt>,
+            Without<IdleAnt>,
+            Without<ForagerAnt>,
+        ),
+    >,
+    forager_ants: Query<
+        (Entity, &ForagerAnt),
+        (With<Ant>, Without<NursemaidAnt>, Without<IdleAnt>),
+    >,
+) {
     let (forager_stats, nursemaid_stats, _idle_stats) = labor_q.single();
-    let mut vaccancies = AntVaccancies {
-        nursemaids: nursemaid_stats.requested - nursemaid_stats.active,
-        foragers: forager_stats.requested - forager_stats.active,
-    };
-
-    if vaccancies.nursemaids <= 0 && vaccancies.foragers <= 0 {
-        return Ok(vaccancies);
-    }
-    q.iter().for_each(|n| {
-        if vaccancies.nursemaids > 0 {
-            commands.apply_assignment::<NursemaidAnt>(n);
-            vaccancies.nursemaids -= 1;
+    let mut nurse_vaccancies = nursemaid_stats.requested - nursemaid_ants.iter().len() as i32;
+    let mut forager_vaccancies = forager_stats.requested - forager_ants.iter().len() as i32;
+    idle_ants.iter().for_each(|entity| {
+        if nurse_vaccancies > 0 {
+            commands.apply_assignment::<NursemaidAnt>(entity);
+            nurse_vaccancies -= 1;
             return;
         }
-        if vaccancies.foragers > 0 {
-            commands.apply_assignment::<ForagerAnt>(n);
-            vaccancies.foragers -= 1;
+        if forager_vaccancies > 0 {
+            commands.apply_assignment::<ForagerAnt>(entity);
+            forager_vaccancies -= 1;
             return;
         }
     });
-    Ok(vaccancies)
-}
-fn task_foragers(
-    In(res): In<Result<AntVaccancies, ()>>,
-    mut commands: Commands,
-    q: Query<(Entity, &ForagerAnt), With<Ant>>,
-) -> Result<AntVaccancies, ()> {
-    if let Ok(mut vaccancies) = res {
-        if vaccancies.nursemaids <= 0 && vaccancies.foragers > 0 {
-            return Ok(vaccancies);
-        }
-        q.iter().for_each(|(n, state)| match *state {
-            ForagerAnt::Seeking | ForagerAnt::GoingHomeEmpty => {
-                if vaccancies.nursemaids > 0 {
-                    commands.apply_assignment::<NursemaidAnt>(n);
-                    vaccancies.nursemaids -= 1;
-                }
-                if vaccancies.foragers <= 0 {
-                    commands.apply_assignment::<IdleAnt>(n);
-                    vaccancies.foragers += 1
-                }
-            }
-            _ => {}
-        });
-        Ok(vaccancies)
-    } else {
-        Err(())
-    }
-}
-fn task_nursemaids(
-    In(res): In<Result<AntVaccancies, ()>>,
-    mut commands: Commands,
-    q: Query<Entity, (With<Ant>, With<NursemaidAnt>)>,
-) {
-    if let Ok(mut vaccancies) = res {
-        if vaccancies.nursemaids >= 0 {
+    forager_ants.iter().for_each(|(entity, behavior)| {
+        if nurse_vaccancies > 0
+            && !matches!(
+                behavior,
+                ForagerAnt::BringingHomeFood | ForagerAnt::FollowingTrail
+            )
+        {
+            commands.apply_assignment::<NursemaidAnt>(entity);
+            nurse_vaccancies -= 1;
             return;
         }
-        q.iter().for_each(|n| {
-            if vaccancies.nursemaids < 0 {
-                commands.apply_assignment::<IdleAnt>(n);
-                vaccancies.nursemaids += 1;
-            }
-        });
-    }
+        if forager_vaccancies < 0 && !matches!(behavior, ForagerAnt::BringingHomeFood | ForagerAnt::FollowingTrail) {
+            commands.apply_assignment::<IdleAnt>(entity);
+            forager_vaccancies += 1;
+        }
+    });
+    nursemaid_ants.iter().for_each(|entity| {
+        if nurse_vaccancies < 0 {
+            commands.apply_assignment::<IdleAnt>(entity);
+            nurse_vaccancies += 1;
+        }
+    });
 }
 
 fn idle_ant_behavior(
