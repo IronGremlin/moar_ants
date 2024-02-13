@@ -11,10 +11,12 @@ impl Plugin for PlayerInputPlugin {
         app.add_plugins(InputManagerPlugin::<CameraControl>::default())
             .add_plugins(InputManagerPlugin::<GamefieldActions>::default())
             .add_plugins(InputManagerPlugin::<MainMenuUIActions>::default())
+            .add_plugins(InputManagerPlugin::<CreditsUIActions>::default())
             .add_plugins(InputManagerPlugin::<SettingsMenuUIActions>::default())
             .add_plugins(InputManagerPlugin::<DisplaySettingsMenuUIActions>::default())
             .add_plugins(InputManagerPlugin::<AudioMenuUIActions>::default())
-            .add_systems(OnEnter(UIFocus::Gamefield), setup.run_if(run_once()))
+            .add_systems(Startup, setup)
+            .add_systems(OnEnter(UIFocus::Gamefield), game_field_setup.run_if(run_once()))
             .add_systems(
                 Update,
                 (pan_camera, zoom_camera, user_toggle_pause, player_open_menu)
@@ -41,7 +43,7 @@ pub enum MainMenuUIActions {
     ExitMainMenu,
     ExitGame,
     OpenSettings,
-    //TODO - OpenCredits,
+    OpenCredits,
 }
 
 #[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
@@ -49,6 +51,11 @@ pub enum SettingsMenuUIActions {
     ToggleDisplaySettings,
     ToggleAudioSettings,
     ExitSettings,
+}
+#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
+pub enum CreditsUIActions {
+    ScrollCredits,
+    ExitCredits,
 }
 
 #[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
@@ -63,8 +70,26 @@ pub enum AudioMenuUIActions {
     SetMusicVolume,
     SetSFXVolume,
 }
+fn setup(    
+    mut gamefield_actions: ResMut<ToggleActions<GamefieldActions>>,
+    mut camera_actions: ResMut<ToggleActions<CameraControl>>,
+    mut main_menu_actions: ResMut<ToggleActions<MainMenuUIActions>>,
+    mut credits_actions: ResMut<ToggleActions<CreditsUIActions>>,
+    mut settings_menu_actions: ResMut<ToggleActions<SettingsMenuUIActions>>,
+    mut display_settings_actions: ResMut<ToggleActions<DisplaySettingsMenuUIActions>>,
+    mut audio_settings_actions: ResMut<ToggleActions<AudioMenuUIActions>>,
+) {
+    gamefield_actions.enabled = false;
+    camera_actions.enabled = false;
+    main_menu_actions.enabled = true;
+    credits_actions.enabled = false;
+    settings_menu_actions.enabled = false;
+    display_settings_actions.enabled = false;
+    audio_settings_actions.enabled = false;
 
-fn setup(
+}
+
+fn game_field_setup(
     mut commands: Commands,
     window: Query<Entity, With<PrimaryWindow>>,
     camera: Query<Entity, With<MainCamera>>,

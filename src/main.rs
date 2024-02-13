@@ -15,6 +15,7 @@ mod spatial_helper;
 mod spawner;
 mod ui_helpers;
 mod upgrades;
+mod credits_ui;
 
 
 use std::time::Duration;
@@ -33,6 +34,7 @@ use bevy_prng::WyRand;
 use bevy_rand::prelude::*;
 use bevy_spatial::{AutomaticUpdate, SpatialStructure};
 use colony::ColonyPlugin;
+use credits_ui::CreditsPlugin;
 use food::FoodPlugin;
 use gamefield_ui::GamefieldUI;
 use gametimer::GameTimerPlugin;
@@ -84,6 +86,7 @@ fn main() {
         .add_plugins((
             MainMenuUI,
             SettingsMenuPlugin,
+            CreditsPlugin,
             GameTimerPlugin,
             PlayerInputPlugin,
         ))

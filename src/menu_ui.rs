@@ -17,9 +17,15 @@ pub struct MainMenu;
 #[derive(Resource, Default)]
 pub struct GameStarted;
 
+#[derive(SystemSet, Hash, Debug, PartialEq, Eq, Clone)]
+enum InputHandlers {
+    ButtonClick
+}
+
 impl Plugin for MainMenuUI {
     fn build(&self, app: &mut App) {
         app.register_type::<UIAnchorNode>()
+        .configure_sets(Update, InputHandlers::ButtonClick.run_if(in_state(UIFocus::MainMenu)))
             .add_systems(Update, open_menu_on_start.run_if(run_once()))
             .add_systems(
                 OnEnter(UIFocus::MainMenu),
@@ -41,9 +47,10 @@ impl Plugin for MainMenuUI {
             .add_systems(
                 Update,
                 (
-                    quit_button_onclick.run_if(in_state(UIFocus::MainMenu)),
-                    toggle_settings.run_if(in_state(UIFocus::MainMenu)),
-                    start_button_onclick.run_if(in_state(UIFocus::MainMenu)),
+                    quit_button_onclick.in_set(InputHandlers::ButtonClick),
+                    toggle_settings.in_set(InputHandlers::ButtonClick),
+                    credits_button_onclick.in_set(InputHandlers::ButtonClick),
+                    start_button_onclick.in_set(InputHandlers::ButtonClick),
                 ),
             );
     }
@@ -138,6 +145,15 @@ fn display_main_menu(
         },
         "Settings",
     );
+    let credits_button = main_menu_button(
+        &mut commands,
+        button_texture.clone(),
+        ActionStateDriver {
+            action: MainMenuUIActions::OpenCredits,
+            targets: root_node.into(),
+        },
+        "Credits",
+    );
     let quit_button = main_menu_button(
         &mut commands,
         button_texture.clone(),
@@ -152,7 +168,7 @@ fn display_main_menu(
     commands.entity(root_node).add_child(menu_layout_node);
     commands
         .entity(menu_layout_node)
-        .push_children(&[start_button, settings_button, quit_button]);
+        .push_children(&[start_button, settings_button, credits_button, quit_button]);
 }
 
 fn start_button_onclick(
@@ -162,6 +178,17 @@ fn start_button_onclick(
     for n in q.iter() {
         if n.just_pressed(MainMenuUIActions::ExitMainMenu) {
             next_state.set(UIFocus::Gamefield);
+        }
+    }
+}
+
+fn credits_button_onclick(
+    q: Query<&ActionState<MainMenuUIActions>>,
+    mut next_state: ResMut<NextState<UIFocus>>,
+) {
+    for n in q.iter() {
+        if n.just_pressed(MainMenuUIActions::OpenCredits) {
+            next_state.set(UIFocus::Credits);
         }
     }
 }

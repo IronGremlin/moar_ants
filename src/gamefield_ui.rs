@@ -1,12 +1,14 @@
 use std::{marker::PhantomData, time::Duration};
 
 use bevy::prelude::*;
+use leafwing_input_manager::plugin::ToggleActions;
 
 use crate::{
     ant::{ForagerAnt, IdleAnt, NursemaidAnt},
     colony::{AntCapacity, AntPopulation, Colony, LaborData, LaborPhase, LarvaTarget, MaxFood},
     food::FoodQuant,
     menu_ui::UIAnchorNode,
+    playerinput::{CameraControl, GamefieldActions},
     ui_helpers::*,
     upgrades::spawn_upgrade_buttons,
     UIFocus,
@@ -42,32 +44,47 @@ struct TargetLarvaDisplay;
 
 impl Plugin for GamefieldUI {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            init_gamefield_ui.run_if(in_state(UIFocus::Gamefield).and_then(run_once())),
-        )
-        .add_systems(
-            Update,
-            (
-                (food_text_update, ant_text_update),
-                (
-                    ant_bar_update::<ForagerAnt>,
-                    ant_bar_update::<NursemaidAnt>,
-                    ant_bar_update::<IdleAnt>,
-                )
-                    .after(LaborPhase::Task),
-                (
-                    increment_target_larva,
-                    decrement_target_larva,
-                    larva_target_display,
-                ),
+        app.add_systems(OnEnter(UIFocus::Gamefield), activate_gamefield_actions)
+            .add_systems(OnExit(UIFocus::Gamefield), deactivate_gamefield_actions)
+            .add_systems(
+                Update,
+                init_gamefield_ui.run_if(in_state(UIFocus::Gamefield).and_then(run_once())),
             )
-                .chain(),
-        );
+            .add_systems(
+                Update,
+                (
+                    (food_text_update, ant_text_update),
+                    (
+                        ant_bar_update::<ForagerAnt>,
+                        ant_bar_update::<NursemaidAnt>,
+                        ant_bar_update::<IdleAnt>,
+                    )
+                        .after(LaborPhase::Task),
+                    (
+                        increment_target_larva,
+                        decrement_target_larva,
+                        larva_target_display,
+                    ),
+                )
+                    .chain(),
+            );
     }
 }
-//We have to make this public so that our settings menu can re-draw the UI when the resolution changes. Very stupid, very necessary.
-pub fn init_gamefield_ui(
+fn activate_gamefield_actions(
+    mut gamefield_actions: ResMut<ToggleActions<GamefieldActions>>,
+    mut camera_actions: ResMut<ToggleActions<CameraControl>>,
+) {
+    gamefield_actions.enabled = true;
+    camera_actions.enabled = true;
+}
+fn deactivate_gamefield_actions(
+    mut gamefield_actions: ResMut<ToggleActions<GamefieldActions>>,
+    mut camera_actions: ResMut<ToggleActions<CameraControl>>,
+) {
+    gamefield_actions.enabled = false;
+    camera_actions.enabled = false;
+}
+fn init_gamefield_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     anchor: Res<UIAnchorNode>,

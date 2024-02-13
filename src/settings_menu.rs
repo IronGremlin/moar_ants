@@ -1,8 +1,5 @@
 use bevy::{
-    ecs::system::SystemParam,
-    prelude::*,
-    ui::RelativeCursorPosition,
-    window::{PrimaryWindow, WindowMode},
+    ecs::system::SystemParam, prelude::*, ui::RelativeCursorPosition, window::PrimaryWindow,
 };
 
 use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
@@ -737,19 +734,13 @@ fn make_resolution_selection_component(
             ..default()
         })
         .id();
-    let mut bgcolor = Color::WHITE;
-    let mut textcolor = Color::BLACK;
+
     let mut i: usize = 1;
     for entry in resolution_options.iter() {
-        bgcolor = if *entry == current {
-            Color::BLACK
+        let (bgcolor, textcolor) = if *entry == current {
+            (Color::BLACK, Color::WHITE)
         } else {
-            Color::WHITE
-        };
-        textcolor = if *entry == current {
-            Color::WHITE
-        } else {
-            Color::BLACK
+            (Color::WHITE, Color::BLACK)
         };
         let bordersize = if i < resolution_options.len() { 1. } else { 0. };
         let text = commands
@@ -804,9 +795,6 @@ impl<'w, 's> ActiveWindowSettings<'w, 's> {
         let res = &self.q.single().resolution;
         (res.width(), res.height())
     }
-    fn is_fullsceen(&self) -> bool {
-        matches!(self.q.single().mode, WindowMode::BorderlessFullscreen)
-    }
 }
 
 fn show_active_window_settings(
@@ -820,18 +808,12 @@ fn show_active_window_settings(
     let current = active_window_settings.resolution;
 
     for (mut color, UiResolutionInput(entry), children) in resolution_selection.iter_mut() {
-        let mut bgcolor = Color::WHITE;
-        let mut textcolor = Color::BLACK;
-        bgcolor = if *entry == current {
-            Color::BLACK
+        let (bgcolor, textcolor) = if *entry == current {
+            (Color::BLACK, Color::WHITE)
         } else {
-            Color::WHITE
+            (Color::WHITE, Color::BLACK)
         };
-        textcolor = if *entry == current {
-            Color::WHITE
-        } else {
-            Color::BLACK
-        };
+
         *color = bgcolor.into();
         for child in children.iter() {
             if let Ok(mut text) = child_text.get_mut(*child) {
