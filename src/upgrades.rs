@@ -96,7 +96,7 @@ where
             .spawn((
                 NineSliceUiMaterialBundle {
                     style: Style {
-                        width: px(105.),
+                        width: px(148.),
                         height: px(44.),
                         padding: UiRect {
                             top: px(5.),
@@ -254,9 +254,9 @@ where
         let effect_label = commands
             .spawn(TextBundle {
                 text: Text::from_sections([
-                    TextSection::new("", TextStyle::local(8., Color::BLACK)),
-                    TextSection::new(" ", TextStyle::local(8., Color::BLACK)),
-                    TextSection::new("", TextStyle::local(8., Color::rgb_u8(106, 190, 48).into())),
+                    TextSection::new("", TextStyle::local(SMALL, Color::BLACK)),
+                    TextSection::new(" ", TextStyle::local(SMALL, Color::BLACK)),
+                    TextSection::new("", TextStyle::local(SMALL, Color::rgb_u8(106, 190, 48).into())),
                 ]),
                 ..default()
             })
@@ -646,7 +646,7 @@ fn cubeish(i: i32, flattener: f32, scalar: f32) -> f32 {
 
 fn upgrade_card_container(mut style: Style) -> Style {
     style.height = px(33.);
-    style.width = px(95.);
+    style.width = px(138.);
     style.display = Display::Flex;
     style.flex_direction = FlexDirection::Column;
     style.row_gap = px(2.);

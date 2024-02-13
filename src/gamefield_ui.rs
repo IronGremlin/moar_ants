@@ -1008,7 +1008,7 @@ fn init_gamefield_ui(
     let upgrade_menu_layout = commands
         .spawn(NineSliceUiMaterialBundle {
             style: Style {
-                width: px(119.),
+                width: px(162.),
                 max_height: Val::Vh(70.0),
                 padding: UiRect::vertical(px(4.)),
                 grid_template_columns: vec![GridTrack::percent(100.)],
