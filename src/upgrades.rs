@@ -256,7 +256,10 @@ where
                 text: Text::from_sections([
                     TextSection::new("", TextStyle::local(SMALL, Color::BLACK)),
                     TextSection::new(" ", TextStyle::local(SMALL, Color::BLACK)),
-                    TextSection::new("", TextStyle::local(SMALL, Color::rgb_u8(106, 190, 48).into())),
+                    TextSection::new(
+                        "",
+                        TextStyle::local(SMALL, Color::rgb_u8(106, 190, 48).into()),
+                    ),
                 ]),
                 ..default()
             })
@@ -345,7 +348,7 @@ pub trait Maxable: ColonyUpgrade {
     }
     fn set_maxed(
         mut commands: Commands,
-        mut button_q: Query<(Entity,&mut Style, &Children), With<ColonyUpgradeButton<Self>>>,
+        mut button_q: Query<(Entity, &mut Style, &Children), With<ColonyUpgradeButton<Self>>>,
         mut style_q: Query<&mut Style, Without<ColonyUpgradeButton<Self>>>,
         upgrade_bar_layout: Query<&Parent, (With<ColonyUpgradeProgress<Self>>, Without<Text>)>,
         asset_server: Res<AssetServer>,
@@ -354,10 +357,12 @@ pub trait Maxable: ColonyUpgrade {
         button_q
             .iter_mut()
             .take(1)
-            .for_each(|(root_entity,mut style, children)| {
-                commands.entity(root_entity).insert(NineSliceUiTexture::from_image(
-                    asset_server.load("nine_slice/upgrade_card_container_backdrop_maxed.png"),
-                ));
+            .for_each(|(root_entity, mut style, children)| {
+                commands
+                    .entity(root_entity)
+                    .insert(NineSliceUiTexture::from_image(
+                        asset_server.load("nine_slice/upgrade_card_container_backdrop_maxed.png"),
+                    ));
                 style.height = px(28.);
                 let mut child_style = style_q.get_mut(children[0]).unwrap();
                 child_style.height = px(17.);
@@ -382,8 +387,7 @@ pub trait AntUpgrade: ColonyUpgrade {
         let upgrades = q.single();
         for mut text in text_q.iter_mut() {
             let index = *upgrades.costs.get(&Self::name()).unwrap();
-            let (current, effect) =
-                Self::display_effect(&ant_settings, index);
+            let (current, effect) = Self::display_effect(&ant_settings, index);
             text.sections[0].value = current;
             text.sections[2].value = effect;
         }
@@ -459,7 +463,7 @@ impl AntUpgrade for AntCarryCapacity {
         if idx < Self::max_index() {
             (
                 format!("{:?}", ant_settings.carry_capacity),
-                format!("(+{:?})", Self::val(idx)),
+                format!("(+{:?})", ant_settings.carry_capacity - Self::val(idx)),
             )
         } else {
             (format!("{:?}", ant_settings.carry_capacity), "MAX".into())
@@ -486,13 +490,12 @@ impl AntUpgrade for AntCarryCapacity {
         let upgrades = q.single();
         for mut text in text_q.iter_mut() {
             let index = *upgrades.costs.get(&Self::name()).unwrap();
-            let (current, effect) =
-                Self::display_effect(&ant_settings, index);
-                if index >= Self::max_index() {
-                    text.sections[0].style = TextStyle::local(SMALL, Color::BLACK);
-                    text.sections[1].style = TextStyle::local(SMALL, Color::BLACK);
-                    text.sections[2].style = TextStyle::local(SMALL, Color::BLACK);
-                }
+            let (current, effect) = Self::display_effect(&ant_settings, index);
+            if index >= Self::max_index() {
+                text.sections[0].style = TextStyle::local(SMALL, Color::BLACK);
+                text.sections[1].style = TextStyle::local(SMALL, Color::BLACK);
+                text.sections[2].style = TextStyle::local(SMALL, Color::BLACK);
+            }
             text.sections[0].value = current;
             text.sections[2].value = effect;
         }
