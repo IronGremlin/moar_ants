@@ -26,7 +26,7 @@ impl Plugin for FoodPlugin {
             )
             .add_systems(
                 Update,
-                (freebie_food_spawn.run_if(on_food_timer()), scale_food),
+                (freebie_food_spawn.run_if(on_food_timer()), scale_food, apply_sprite_to_carried),
             )
             .add_systems(PreUpdate, (cull_empty, process_food_delta).chain());
     }
@@ -163,13 +163,37 @@ fn spawn_first_chunk(
     ));
 }
 
-fn scale_food(mut q: Query<(&mut Transform, &FoodQuant), With<Sprite>>) {
+fn scale_food(mut q: Query<(&mut Transform, &FoodQuant), (With<Sprite>, Without<Carried>)>) {
     q.iter_mut().for_each(|(mut transform, quant)| {
         let mut scale = quant.0 as f32 / FOOD_CHUNK_MAX_STARTING_AMOUNT as f32;
         scale = remap(0.0, 1.0, FOOD_MIN_SCALE, 1.0, scale);
         transform.scale = Vec3::from((scale, scale, 1.0));
     });
 }
+fn apply_sprite_to_carried(mut commands: Commands,q:Query<(Entity,&FoodQuant, Has<Sprite>), (With<Carried>, With<Parent>) >, assets: Res<AssetServer>,) {
+    q.iter().for_each(|(entity, food, sprite)| {
+        if food.0 != 0 && !sprite {
+            let scale = FOOD_MIN_SCALE * 1.5;
+            let mut transform = Transform::from_xyz(0., 12.5, -0.1);
+                transform.scale = Vec3::from((scale, scale, 1.0));
+                let texture = assets.load("food_chunk.png");
+                commands.entity(entity).insert((
+                    SpriteBundle {
+                        texture,
+                        transform,
+                        ..default()
+                    },
+                ));
+                return;
+        }
+        if food.0 == 0 && sprite {
+            commands.entity(entity).remove::<Sprite>();
+            return;
+        }
+
+    })
+}
+
 
 fn cull_empty(
     mut commands: Commands,
@@ -195,13 +219,10 @@ fn process_food_delta(
             source_food.take_food(&mut dest_food, event.requested, maxfood.map(|x| x.0));
             // If we are an ant carrying food, and we tried to drop it off but the destination was full
             if was_carried && source_food.0 > 0 {
-                let scale = source_food.0 as f32 / FOOD_CHUNK_MAX_STARTING_AMOUNT as f32;
+                let scale = (source_food.0 as f32 / FOOD_CHUNK_MAX_STARTING_AMOUNT as f32).clamp(FOOD_MIN_SCALE, 1.0);
                 let mut transform = Transform::from_xyz(0., 0., 0.1);
                 transform.scale = Vec3::from((scale, scale, 1.0));
-                let texture =
-                    assets.load_with_settings("food_chunk.png", |s: &mut ImageLoaderSettings| {
-                        s.sampler = ImageSampler::Descriptor(ImageSamplerDescriptor::linear())
-                    });
+                let texture = assets.load("food_chunk.png");
                 commands.spawn((
                     FoodQuant(source_food.0),
                     SpriteBundle {

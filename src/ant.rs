@@ -328,7 +328,7 @@ fn navigate_move(
 
             pos_2d += vec;
 
-            transform.translation = Vec3::from((pos_2d, 1.));
+            transform.translation = Vec3::from((pos_2d, 2.));
         }
     });
 }
