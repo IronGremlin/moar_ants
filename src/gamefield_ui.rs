@@ -327,7 +327,7 @@ fn init_gamefield_ui(
     let egg_button_layout = commands
         .spawn(NodeBundle {
             style: Style {
-                width: px(572.),
+                width: px(582.),
                 height: px(120.),
                 flex_direction: FlexDirection::Row,
                 ..default()
@@ -338,7 +338,7 @@ fn init_gamefield_ui(
     let egg_button_grid_container = commands
         .spawn(NineSliceUiMaterialBundle {
             style: Style {
-                width: px(233.),
+                width: px(243.),
                 height: px(71.),
                 padding: UiRect {
                     top: px(1.),
@@ -348,7 +348,7 @@ fn init_gamefield_ui(
                 },
                 display: Display::Grid,
                 grid_template_rows: vec![GridTrack::percent(50.), GridTrack::percent(50.)],
-                grid_template_columns: vec![GridTrack::px(151.), GridTrack::px(81.)],
+                grid_template_columns: vec![GridTrack::px(151.), GridTrack::px(91.)],
                 ..default()
             },
             nine_slice_texture: NineSliceUiTexture::from_image(
@@ -493,6 +493,7 @@ fn init_gamefield_ui(
         .spawn(NodeBundle {
             style: Style {
                 display: Display::Grid,
+                margin: UiRect::right(px(10.)),
                 grid_column: GridPlacement::start(2),
                 grid_row: GridPlacement::start(1).set_span(2),
                 grid_template_columns: vec![
