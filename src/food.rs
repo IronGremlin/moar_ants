@@ -4,7 +4,6 @@ use bevy::{
     ecs::query::Has,
     math::Vec3Swizzles,
     prelude::*,
-    render::texture::{ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor},
 };
 use bevy_prng::WyRand;
 use bevy_rand::resource::GlobalEntropy;
