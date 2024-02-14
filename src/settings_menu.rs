@@ -358,7 +358,7 @@ fn instantiate_settings_menu(
                 display: Display::None,
                 grid_column: GridPlacement::start(1),
                 grid_row: GridPlacement::start(1),
-                grid_template_columns: vec![GridTrack::px(49.), GridTrack::px(102.)],
+                grid_template_columns: vec![GridTrack::px(67.), GridTrack::px(140.)],
                 grid_template_rows: vec![
                     GridTrack::percent(33.),
                     GridTrack::percent(33.),
