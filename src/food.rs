@@ -11,10 +11,7 @@ use bevy_rand::resource::GlobalEntropy;
 use rand::prelude::*;
 
 use crate::{
-    ant::Carried,
-    colony::{Colony, MaxFood},
-    gametimer::SimTimer,
-    SimState, SoundScape, SpatialMarker,
+    ant::Carried, colony::{Colony, MaxFood}, gametimer::SimTimer, misc_utility::remap, SimState, SoundScape, SpatialMarker
 };
 
 pub struct FoodPlugin;
@@ -76,6 +73,7 @@ const FOOD_CHUNK_MIN_STARTING_AMOUNT: i32 = 180;
 const FREEBIE_FOOD_CAP: usize = 200;
 const FREEBIE_FOOD_INTERVAL: u64 = 15;
 const BASELINE_EXCLUSION_DISTANCE: f32 = 65.0;
+const FOOD_MIN_SCALE :f32 = 0.125;
 
 fn on_food_timer() -> impl Condition<()> {
     IntoSystem::into_system(|q: Query<&SimTimer, With<FoodSpawnTimer>>| {
@@ -168,7 +166,7 @@ fn spawn_first_chunk(
 fn scale_food(mut q: Query<(&mut Transform, &FoodQuant), With<Sprite>>) {
     q.iter_mut().for_each(|(mut transform, quant)| {
         let mut scale = quant.0 as f32 / FOOD_CHUNK_MAX_STARTING_AMOUNT as f32;
-        scale = scale * scale * scale; //Cube it to give a more fun curve
+        scale = remap(0.0, 1.0, FOOD_MIN_SCALE, 1.0, scale);
         transform.scale = Vec3::from((scale, scale, 1.0));
     });
 }
@@ -217,3 +215,4 @@ fn process_food_delta(
         }
     }
 }
+
