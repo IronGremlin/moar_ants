@@ -123,7 +123,7 @@ fn freebie_food_spawn(
     if let Some(food_pos) = pos {
         let texture = assets.load("food_chunk.png");
         sounds.send(SoundScape::FoodSpawn);
-        let mut transform = Transform::from_xyz(food_pos.x, food_pos.y, 1.);
+        let mut transform = Transform::from_xyz(food_pos.x, food_pos.y, 0.1);
         transform.scale = Vec3::from((food_scale, food_scale, 1.0));
         commands.spawn((
             food_q,
@@ -149,7 +149,7 @@ fn spawn_first_chunk(
         FoodQuant(FOOD_CHUNK_MAX_STARTING_AMOUNT),
         SpriteBundle {
             texture,
-            transform: Transform::from_xyz(pos.x, pos.y, 1.),
+            transform: Transform::from_xyz(pos.x, pos.y, 0.1),
             ..default()
         },
         SpatialMarker,
@@ -198,7 +198,7 @@ fn process_food_delta(
             // If we are an ant carrying food, and we tried to drop it off but the destination was full
             if was_carried && source_food.0 > 0 {
                 let scale = source_food.0 as f32 / FOOD_CHUNK_MAX_STARTING_AMOUNT as f32;
-                let mut transform = Transform::from_xyz(0., 0., 1.);
+                let mut transform = Transform::from_xyz(0., 0., 0.1);
                 transform.scale = Vec3::from((scale, scale, 1.0));
                 let texture =
                     assets.load_with_settings("food_chunk.png", |s: &mut ImageLoaderSettings| {

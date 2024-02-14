@@ -6,7 +6,6 @@ use std::{
 
 use bevy::{
     ecs::{
-        entity,
         query::Has,
         system::{Command, SystemState},
     },
@@ -27,7 +26,6 @@ use crate::{
     misc_utility::NaNGuard,
     scentmap::{self, ScentMap, ScentSettings, ScentType, WeightType},
     spatial_helper::DistanceAwareQuery,
-    spawner::Spawner,
     AntSpatialMarker, SimState, SoundScape, SpatialMarker,
 };
 
@@ -59,10 +57,6 @@ impl Plugin for AntPlugin {
                         .run_if(in_state(SimState::Playing)),
                 )
                     .chain(),
-            )
-            .add_systems(
-                Update,
-                ant_vagrancy_check.run_if(on_timer(Duration::from_secs_f32(0.25))),
             )
             .add_systems(
                 Update,
@@ -456,33 +450,6 @@ fn select_random_pos_along_bearing(
     }
 
     target_pos
-}
-
-fn ant_vagrancy_check(
-    mut q: Query<(&mut Ant, &Transform)>,
-    space: DistanceAwareQuery<SpatialMarker, &GlobalTransform, With<Spawner>>,
-) {
-    for (mut ant, ant_transform) in q.iter_mut() {
-        let my_loc = ant_transform.translation.xy();
-        //If we are already close enough, don't re-home.
-        // This should prevent ants from pin-balling between spawners.
-        if my_loc.distance(ant.home) <= 120.0 {
-            continue;
-        }
-        let mut distance: f32 = -1.0;
-        let mut nearest = Vec2::ZERO;
-        for spawner_transform in space.within_distance(ant_transform.translation.xy(), 60.0) {
-            let this_loc = spawner_transform.translation().xy();
-            let this_dist = this_loc.distance(my_loc);
-            distance = this_dist.max(distance);
-            if this_dist == distance {
-                nearest = this_loc;
-            }
-        }
-        if distance >= 0.0 {
-            ant.home = nearest;
-        }
-    }
 }
 
 fn task_ants(

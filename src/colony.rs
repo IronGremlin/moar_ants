@@ -1,13 +1,17 @@
-use std::marker::PhantomData;
+use std::{f32::consts::TAU, marker::PhantomData};
 
 use bevy::prelude::*;
+use bevy_prng::WyRand;
+use bevy_rand::resource::GlobalEntropy;
+use rand::Rng;
 
 use crate::{
-    ant::{Ant, AntSettings, ForagerAnt, IdleAnt, NursemaidAnt},
+    ant::{Ant, AntCommandsExt, AntSettings, ForagerAnt, IdleAnt, NursemaidAnt},
     food::FoodQuant,
     gizmodable::{GizmoDrawOp, VisualDebug},
     larva::LarvaSettings,
     upgrades::UpgradeStringIndex,
+    UIFocus,
 };
 
 pub struct ColonyPlugin;
@@ -27,6 +31,9 @@ pub struct LarvaTarget(pub i32);
 
 #[derive(Component, Reflect)]
 pub struct MaxFood(pub i32);
+
+#[derive(Component)]
+pub struct StartingAnts(i32);
 
 #[derive(Component, Default)]
 pub struct LaborData<T: Component + Default> {
@@ -67,6 +74,10 @@ impl Plugin for ColonyPlugin {
             .register_type::<AntCapacity>()
             .register_type::<MaxFood>()
             .add_systems(Startup, init_default_colony)
+            .add_systems(
+                OnEnter(UIFocus::Gamefield),
+                spawn_starting_ants.run_if(run_once()),
+            )
             .configure_sets(
                 Update,
                 (
@@ -98,6 +109,7 @@ pub fn init_default_colony(mut commands: Commands) {
             labor_stats: LaborStats::default(),
             home: ColonyPos((0., 0.).into()),
         },
+        StartingAnts(25),
         UpgradeStringIndex::new(),
         VisualDebug::from_persistent(GizmoDrawOp::circle(Vec2::ZERO, 30.0, Color::YELLOW)),
         Name::new("Player_Colony"),
@@ -131,7 +143,7 @@ fn labor_census(
     idle_stats.active = idle;
     nursemaid_stats.active = nursemaids;
     forager_stats.active = foragers;
-forager_stats.requested = (max_food.0 - food.0) / ant_settings.carry_capacity;
+    forager_stats.requested = (max_food.0 - food.0) / ant_settings.carry_capacity;
 }
 
 fn request_nursemaids(
@@ -141,4 +153,31 @@ fn request_nursemaids(
     let (target, mut nursemaid_stats) = q.single_mut();
     nursemaid_stats.requested =
         (larva_settings.nursemaids_per_larva * target.0 as f32).round() as i32;
+}
+fn spawn_starting_ants(
+    mut commands: Commands,
+    mut rng: ResMut<GlobalEntropy<WyRand>>,
+    assets: Res<AssetServer>,
+    q: Query<(Entity, &StartingAnts)>,
+) {
+    commands.spawn(SpriteBundle {
+        texture: assets.load("ant_hill.png"),
+        transform: Transform::from_xyz(0., 0., 0.1),
+        ..default()
+    });
+    for (ent, starting_ants) in q.iter() {
+        for _ in 1..starting_ants.0 {
+            let offset_vec = random_offset_vec(&mut rng);
+            let ant_pos = Vec2::ZERO + offset_vec;
+            commands.spawn_ant(ent, ant_pos)
+        }
+        commands.entity(ent).remove::<StartingAnts>();
+    }
+}
+
+fn random_offset_vec(rng: &mut ResMut<GlobalEntropy<WyRand>>) -> Vec2 {
+    let rand_angle = rng.gen_range(0.002..TAU);
+    let mut offset_vec = Vec2::from((f32::sin(rand_angle), f32::cos(rand_angle)));
+    offset_vec *= rng.gen_range(2.0..40.0);
+    offset_vec
 }

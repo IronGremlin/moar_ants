@@ -463,7 +463,7 @@ impl AntUpgrade for AntCarryCapacity {
         if idx < Self::max_index() {
             (
                 format!("{:?}", ant_settings.carry_capacity),
-                format!("(+{:?})", ant_settings.carry_capacity - Self::val(idx)),
+                format!("(+{:?})", Self::val(idx) - ant_settings.carry_capacity),
             )
         } else {
             (format!("{:?}", ant_settings.carry_capacity), "MAX".into())

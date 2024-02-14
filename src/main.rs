@@ -12,7 +12,6 @@ mod playerinput;
 mod scentmap;
 mod settings_menu;
 mod spatial_helper;
-mod spawner;
 mod ui_helpers;
 mod upgrades;
 mod credits_ui;
@@ -44,7 +43,6 @@ use menu_ui::MainMenuUI;
 use playerinput::PlayerInputPlugin;
 use scentmap::ScentMapPlugin;
 use settings_menu::SettingsMenuPlugin;
-use spawner::SpawnerPlugin;
 use upgrades::UpgradePlugin;
 
 fn main() {
@@ -98,7 +96,6 @@ fn main() {
             UpgradePlugin,
             ScentMapPlugin,
             FoodPlugin,
-            SpawnerPlugin,
             GamefieldUI,
         ))
         .add_systems(
