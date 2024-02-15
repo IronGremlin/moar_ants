@@ -407,7 +407,7 @@ fn tokyo(mut q: Query<(&mut Transform, &mut VisualDebug, &mut Navigate, &mut Dri
                 transform.translation.xy() + (drift.vec * drift.mag),
                 Color::PURPLE,
             ));
-            if let Some(mut dest) = nav.move_to {
+            if let Some(dest) = nav.move_to {
                 nav.move_to = Some(dest + adj);
             }
             transform.translation += adj.extend(zed);
