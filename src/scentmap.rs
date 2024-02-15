@@ -196,7 +196,7 @@ pub struct ScentSettings {
 impl Default for ScentSettings {
     fn default() -> Self {
         ScentSettings {
-            decay_rate: 2.5,
+            decay_rate: 5.0,
             smell_radius: 10.0,
             starting_strength: 50.0,
             max_smell: 150.0,
