@@ -289,7 +289,7 @@ fn soundscape_processor(
     mut sound_events: EventReader<SoundScape>,
     settings: Res<VolumeSettings>,
 ) {
-    for event in sound_events.read() {
+    for event in sound_events.read().take(5) {
         let asset_path = match *event {
             SoundScape::AntBorn => "B_vib.wav",
             SoundScape::AntDeath => "Click.wav",
@@ -311,6 +311,8 @@ fn soundscape_processor(
             SoundType::SFX,
         ));
     }
+    // 5 sounds in a 60th of a second is pretty intense TBH
+    sound_events.clear();
 }
 fn volume_changed(settings: Res<VolumeSettings>) -> bool {
     settings.is_changed()
