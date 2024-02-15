@@ -7,14 +7,11 @@ use crate::SimState;
 #[derive(Resource)]
 pub struct GameClock {
     pub delta: Duration,
-    // We store this here so that the user can pause/unpause separately from incremently advancing our scalar all the way back down/up from 0.
-    resume_speed: TickRate,
 }
 impl Default for GameClock {
     fn default() -> Self {
         GameClock {
             delta: Duration::new(0, 0),
-            resume_speed: TickRate::X4,
         }
     }
 }
@@ -44,8 +41,8 @@ impl Plugin for GameTimerPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameClock::default())
             .add_state::<TickRate>()
-            .add_systems(OnEnter(SimState::Playing), resume_when_sim_resumes)
-            .add_systems(OnEnter(SimState::Paused), pause_when_sim_pauses)
+            .add_systems(OnEnter(SimState::Playing), start_sim)
+            .add_systems(OnEnter(SimState::Paused), pause_sim)
             .add_systems(PreUpdate, tick_sim_timers);
     }
 }
@@ -58,19 +55,14 @@ pub fn scaled_time(rate: &TickRate, duration: Duration) -> Duration {
     Duration::from_nanos((duration.as_nanos() as u64 * scalar) as u64)
 }
 
-fn pause_when_sim_pauses(
-    mut rate: ResMut<NextState<TickRate>>,
-    current_rate: Res<State<TickRate>>,
-    mut timer: ResMut<GameClock>,
-) {
-    // we treat "paused" as a valid rate to record - this is intentional, because if the player were to open a menu or do anything else that causes out of band
-    // sim halt while the sim clock is manually paused, we should not surprise the player by returning them to an unpaused sim once that state is exited.
-    timer.resume_speed = current_rate.get().clone();
+pub fn pause_sim(mut rate: ResMut<NextState<TickRate>>) {
+    info!("pausing simulation");
     rate.set(TickRate::Paused);
 }
 
-fn resume_when_sim_resumes(mut rate: ResMut<NextState<TickRate>>, timer: Res<GameClock>) {
-    rate.set(timer.resume_speed.clone());
+pub fn start_sim(mut rate: ResMut<NextState<TickRate>>) {
+    info!("starting simulation");
+    rate.set(TickRate::X4);
 }
 
 fn tick_sim_timers(

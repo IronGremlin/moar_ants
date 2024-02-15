@@ -37,6 +37,7 @@ use credits_ui::CreditsPlugin;
 use food::FoodPlugin;
 use gamefield_ui::GamefieldUI;
 use gametimer::GameTimerPlugin;
+
 use gizmodable::Gizmotastic;
 use larva::LarvaPlugin;
 use menu_ui::MainMenuUI;
@@ -51,7 +52,7 @@ fn main() {
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "My Ant Sim".into(),
+                        title: "Moar Ants!".into(),
                         mode: WindowMode::BorderlessFullscreen,
                         resolution: (1280.0, 720.0).into(),
                         ..default()
@@ -106,8 +107,9 @@ fn main() {
             First,
             set_default_font.run_if(resource_exists::<DefaultFontHandle>()),
         )
-        .add_systems(OnEnter(UIFocus::Gamefield), start_sim)
-        .add_systems(OnEnter(UIFocus::MainMenu), pause_sim)
+        
+        .add_systems(OnEnter(UIFocus::Gamefield), (start_game, flag_game_as_started.run_if(run_once())).chain())
+        .add_systems(OnExit(UIFocus::Gamefield), pause_game)
         .add_systems(
             Update,
             (
@@ -119,6 +121,11 @@ fn main() {
         )
         .run();
 }
+
+#[derive(Resource, Default)]
+pub struct GameStarted;
+
+
 #[derive(Component, Default)]
 pub struct SpatialMarker;
 
@@ -129,6 +136,7 @@ pub struct AntSpatialMarker;
 pub enum SimState {
     #[default]
     Paused,
+    MenuOpenedWhilePaused,
     Playing,
 }
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
@@ -261,10 +269,18 @@ fn set_default_font(
     }
 }
 
-fn start_sim(mut sim_state: ResMut<NextState<SimState>>) {
+fn start_game(mut sim_state: ResMut<NextState<SimState>>, current_sim_state: Res<State<SimState>>) {
+    if matches!(current_sim_state.get(), SimState::MenuOpenedWhilePaused) {
+        sim_state.set(SimState::Paused);
+        return;
+    }
     sim_state.set(SimState::Playing);
 }
-fn pause_sim(mut sim_state: ResMut<NextState<SimState>>) {
+fn pause_game(mut sim_state: ResMut<NextState<SimState>>, current_sim_state: Res<State<SimState>>) {
+    if matches!(current_sim_state.get(), SimState::Paused) {
+        sim_state.set(SimState::MenuOpenedWhilePaused);
+        return;
+    }
     sim_state.set(SimState::Paused);
 }
 fn play_music(mut commands: Commands, assets: Res<AssetServer>, settings: Res<VolumeSettings>) {
@@ -378,4 +394,7 @@ fn populate_display_settings_changes(
     } else {
         WindowMode::Windowed
     };
+}
+fn flag_game_as_started(world: &mut World) {
+    world.init_resource::<GameStarted>();
 }

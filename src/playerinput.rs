@@ -16,7 +16,10 @@ impl Plugin for PlayerInputPlugin {
             .add_plugins(InputManagerPlugin::<DisplaySettingsMenuUIActions>::default())
             .add_plugins(InputManagerPlugin::<AudioMenuUIActions>::default())
             .add_systems(Startup, setup)
-            .add_systems(OnEnter(UIFocus::Gamefield), game_field_setup.run_if(run_once()))
+            .add_systems(
+                OnEnter(UIFocus::Gamefield),
+                game_field_setup.run_if(run_once()),
+            )
             .add_systems(
                 Update,
                 (pan_camera, zoom_camera, user_toggle_pause, player_open_menu)
@@ -70,7 +73,7 @@ pub enum AudioMenuUIActions {
     SetMusicVolume,
     SetSFXVolume,
 }
-fn setup(    
+fn setup(
     mut gamefield_actions: ResMut<ToggleActions<GamefieldActions>>,
     mut camera_actions: ResMut<ToggleActions<CameraControl>>,
     mut main_menu_actions: ResMut<ToggleActions<MainMenuUIActions>>,
@@ -86,7 +89,6 @@ fn setup(
     settings_menu_actions.enabled = false;
     display_settings_actions.enabled = false;
     audio_settings_actions.enabled = false;
-
 }
 
 fn game_field_setup(
@@ -170,7 +172,7 @@ fn user_toggle_pause(
         if action.just_pressed(GamefieldActions::TogglePause) {
             info!("Toggle pause");
             sim_next.set(match sim_current.get() {
-                SimState::Paused => SimState::Playing,
+                SimState::Paused | SimState::MenuOpenedWhilePaused => SimState::Playing,
                 SimState::Playing => SimState::Paused,
             });
         }

@@ -7,25 +7,25 @@ use leafwing_input_manager::{
     InputManagerBundle,
 };
 
-use crate::{playerinput::MainMenuUIActions, ui_helpers::ProjectLocalStyle, UIFocus};
+use crate::{playerinput::MainMenuUIActions, ui_helpers::ProjectLocalStyle, GameStarted, UIFocus};
 
 pub struct MainMenuUI;
 
 #[derive(Component)]
 pub struct MainMenu;
 
-#[derive(Resource, Default)]
-pub struct GameStarted;
-
 #[derive(SystemSet, Hash, Debug, PartialEq, Eq, Clone)]
 enum InputHandlers {
-    ButtonClick
+    ButtonClick,
 }
 
 impl Plugin for MainMenuUI {
     fn build(&self, app: &mut App) {
         app.register_type::<UIAnchorNode>()
-        .configure_sets(Update, InputHandlers::ButtonClick.run_if(in_state(UIFocus::MainMenu)))
+            .configure_sets(
+                Update,
+                InputHandlers::ButtonClick.run_if(in_state(UIFocus::MainMenu)),
+            )
             .add_systems(Update, open_menu_on_start.run_if(run_once()))
             .add_systems(
                 OnEnter(UIFocus::MainMenu),
@@ -37,13 +37,6 @@ impl Plugin for MainMenuUI {
                     .chain(),
             )
             .add_systems(OnExit(UIFocus::MainMenu), main_menu_teardown)
-            .add_systems(
-                OnEnter(UIFocus::Gamefield),
-                (|world: &mut World| {
-                    world.init_resource::<GameStarted>();
-                })
-                .run_if(run_once()),
-            )
             .add_systems(
                 Update,
                 (
@@ -166,9 +159,12 @@ fn display_main_menu(
 
     commands.entity(anchor.0).add_child(root_node);
     commands.entity(root_node).add_child(menu_layout_node);
-    commands
-        .entity(menu_layout_node)
-        .push_children(&[start_button, settings_button, credits_button, quit_button]);
+    commands.entity(menu_layout_node).push_children(&[
+        start_button,
+        settings_button,
+        credits_button,
+        quit_button,
+    ]);
 }
 
 fn start_button_onclick(
@@ -272,4 +268,3 @@ fn main_menu_button_style() -> Style {
         ..default()
     }
 }
-
