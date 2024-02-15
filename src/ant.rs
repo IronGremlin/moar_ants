@@ -52,7 +52,7 @@ impl Plugin for AntPlugin {
                         nav_debug,
                     )
                         .before(GizmoSystemSet::GizmoQueueDraw),
-                    (ant_i_gravity, tokyo, navigate_move)
+                    (ant_i_gravity,  navigate_move, tokyo,)
                         .chain()
                         .run_if(in_state(SimState::Playing)),
                 )
@@ -365,11 +365,12 @@ fn ant_i_gravity(
         let mut count = 0;
 
         let big_vec = nearby_ants
+             .filter(|x| x.translation().xy() != mypos)
             .map(|ant_transform| {
                 count += 1;
                 let antpos = ant_transform.translation().xy();
                 let dist = mypos.distance(antpos);
-                let magnitude = ((dist * dist).recip() * ant_settings.ant_i_gravity).max(0.);
+                let magnitude = ((dist * dist).recip() * ant_settings.ant_i_gravity).clamp(0., ant_settings.ant_i_gravity_max);
 
                 let dir = (mypos - antpos).normalize_or_zero();
                 dir * magnitude
@@ -389,26 +390,29 @@ fn ant_i_gravity(
         drift.vec = sum_vec.normalize_or_zero();
         drift.mag = sum_vec
             .distance(Vec2::ZERO)
+            .nan_guard(0.0)
             .min(ant_settings.ant_i_gravity_max);
     })
 }
-fn tokyo(mut q: Query<(&mut Transform, &mut VisualDebug, &mut Drift), With<Ant>>, time: Res<Time>) {
-    q.par_iter_mut().for_each(|(mut transform, mut dbg, drift)| {
-        if drift.mag > 0.1 || drift.mag < -0.1 {
-            let max_drift = 0.9 * ANT_MOVE_SPEED;
+fn tokyo(mut q: Query<(&mut Transform, &mut VisualDebug, &mut Navigate, &mut Drift), With<Ant>>, time: Res<Time>) {
+    let max_drift = 0.9 * ANT_MOVE_SPEED;
+    q.par_iter_mut().for_each(|(mut transform, mut dbg, mut nav, mut drift)| {
+        if drift.mag > 0.1 {
             let scaled_magnitude =
                 (drift.mag.clamp(0.0, max_drift) * time.delta_seconds()).nan_guard(0.0);
             let adj = (scaled_magnitude * drift.vec).nan_guard(Vec2::ZERO);
             let zed = transform.translation.z;
             dbg.add(GizmoDrawOp::line(
                 transform.translation.xy(),
-                transform.translation.xy() + drift.vec * drift.mag,
+                transform.translation.xy() + (drift.vec * drift.mag),
                 Color::PURPLE,
             ));
+            if let Some(mut dest) = nav.move_to {
+                nav.move_to = Some(dest + adj);
+            }
             transform.translation += adj.extend(zed);
-            // We reduce by the full value of our magnitude scaled to dT instead of the actual amount so that
-            // we always have some downward trend to our accumulated antigrav
-            // drift.mag -= drift.mag * time.delta_seconds();
+
+            drift.mag -= scaled_magnitude * 1.1;
         }
     })
 }

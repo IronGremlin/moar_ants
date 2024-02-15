@@ -178,6 +178,6 @@ fn spawn_starting_ants(
 fn random_offset_vec(rng: &mut ResMut<GlobalEntropy<WyRand>>) -> Vec2 {
     let rand_angle = rng.gen_range(0.002..TAU);
     let mut offset_vec = Vec2::from((f32::sin(rand_angle), f32::cos(rand_angle)));
-    offset_vec *= rng.gen_range(2.0..40.0);
+    offset_vec *= rng.gen_range(2.0..5.0);
     offset_vec
 }
