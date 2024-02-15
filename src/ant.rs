@@ -163,7 +163,7 @@ const ANT_STARTING_MAX_AGE: u64 = 240;
 const ANT_STARTING_CARRY_CAPACITY: i32 = 5;
 const ANT_MOVE_SPEED: f32 = 5.0;
 const ANT_SEC_PER_ROTATION: f32 = 5.0;
-const ANT_I_GRAVITY_FACTOR: f32 = 25.0;
+const ANT_I_GRAVITY_FACTOR: f32 = 15.0;
 const ANT_I_GRAVITY_MAXIMUM: f32 = 50.0;
 
 #[derive(Component)]
