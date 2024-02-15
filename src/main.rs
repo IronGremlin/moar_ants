@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod ant;
 mod colony;
+mod credits_ui;
 mod food;
 mod gamefield_ui;
 mod gametimer;
@@ -14,8 +15,6 @@ mod settings_menu;
 mod spatial_helper;
 mod ui_helpers;
 mod upgrades;
-mod credits_ui;
-
 
 use std::time::Duration;
 
@@ -107,8 +106,10 @@ fn main() {
             First,
             set_default_font.run_if(resource_exists::<DefaultFontHandle>()),
         )
-        
-        .add_systems(OnEnter(UIFocus::Gamefield), (start_game, flag_game_as_started.run_if(run_once())).chain())
+        .add_systems(
+            OnEnter(UIFocus::Gamefield),
+            (start_game, flag_game_as_started.run_if(run_once())).chain(),
+        )
         .add_systems(OnExit(UIFocus::Gamefield), pause_game)
         .add_systems(
             Update,
@@ -124,7 +125,6 @@ fn main() {
 
 #[derive(Resource, Default)]
 pub struct GameStarted;
-
 
 #[derive(Component, Default)]
 pub struct SpatialMarker;
@@ -146,7 +146,7 @@ pub enum UIFocus {
     MainMenu,
     Gamefield,
     SettingsMenu,
-    Credits
+    Credits,
 }
 
 #[derive(Event)]
@@ -248,7 +248,9 @@ fn setup(
     camera.camera_2d.clear_color = ClearColorConfig::Custom(Color::BLACK);
     commands.spawn((camera, MainCamera));
     let mut win = q.single_mut();
-    win.set_maximized(true);
+    if display_settings.fullscreen {
+        win.set_maximized(true);
+    }
     win.resolution = display_settings.resolution.into();
     win.mode = if display_settings.fullscreen {
         WindowMode::SizedFullscreen
@@ -372,15 +374,13 @@ fn populate_display_settings_changes(
         let necessary_scale_factor = nativex as f64 / targetx as f64;
         let ui_scale_factor = targety as f64 / 720.;
         ui_scale.0 = ui_scale_factor;
-        if necessary_scale_factor >= 1.0  && display_settings.fullscreen {
+        if necessary_scale_factor >= 1.0 && display_settings.fullscreen {
             window
                 .resolution
                 .set_scale_factor_override(Some(necessary_scale_factor));
         }
         if !display_settings.fullscreen {
-            window
-                .resolution
-                .set_scale_factor_override(Some(1.0));
+            window.resolution.set_scale_factor_override(Some(1.0));
         }
     }
 
