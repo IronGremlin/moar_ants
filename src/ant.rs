@@ -730,7 +730,8 @@ fn forager_ant_behavior(
             match (*behavior, food_nearby) {
                 (ForagerAnt::BringingHomeFood, _) | (ForagerAnt::GoingHomeEmpty, false) => {
                     let distance_to_home = mypos.distance(ant.home);
-                    if  distance_to_home <= 3.0 || distance_to_home > mypos.distance(Vec2::ZERO) {
+                    let distance_to_origin = mypos.distance(Vec2::ZERO);
+                    if  distance_to_home <= 3.0 || (distance_to_home > distance_to_origin && distance_to_origin <= 25.0) {
                         for child in children.iter() {
                             if let Ok((entity, carried_food)) = carried_q.get(*child) {
                                 foodevents.send(FoodDeltaEvent {
