@@ -281,9 +281,13 @@ fn navigate_move(
         .as_secs_f32()
         .clamp(f32::EPSILON, 1.0);
 
-    q.par_iter_mut().for_each(|(_global_transform, mut transform, mut nav)| {
+    q.par_iter_mut().for_each(|(global_transform, mut transform, mut nav)| {
         if let Some(destination) = nav.move_to {
-            let mut pos_2d = transform.translation.xy();
+            if destination.is_nan() {
+                nav.move_to = None;
+                return;
+            }
+            let mut pos_2d = global_transform.translation().xy();
             let max_speed = destination.distance(pos_2d);
             let mut scaled_speed = (nav.max_speed * frame_delta).clamp(0.0, max_speed);
             let scaled_rot_speed = nav.max_radians_per_sec * frame_delta;
@@ -293,9 +297,8 @@ fn navigate_move(
             let angle_delta = vec.angle_between(facing);
 
             //If we're ~ one frame away just teleport there - this fixes a host of xeno's paradox type edge-cases.
-            if destination.distance(pos_2d) <= (scaled_speed * 2.0) {
-                transform.translation = Vec3::from((pos_2d, 1.));
-                transform.rotate_local_axis(Vec3::Z, -angle_delta);
+            if destination.distance(pos_2d) <= (scaled_speed * 1.3) {
+                transform.translation = destination.extend(2.0);
                 nav.move_to = None;
                 return;
             }
@@ -726,7 +729,8 @@ fn forager_ant_behavior(
 
             match (*behavior, food_nearby) {
                 (ForagerAnt::BringingHomeFood, _) | (ForagerAnt::GoingHomeEmpty, false) => {
-                    if transform.translation().xy().distance(ant.home) <= 3.0 {
+                    let distance_to_home = mypos.distance(ant.home);
+                    if  distance_to_home <= 3.0 || distance_to_home > mypos.distance(Vec2::ZERO) {
                         for child in children.iter() {
                             if let Ok((entity, carried_food)) = carried_q.get(*child) {
                                 foodevents.send(FoodDeltaEvent {
@@ -738,10 +742,10 @@ fn forager_ant_behavior(
                         }
 
                         *behavior = ForagerAnt::default();
-
+                        
                         return;
                     }
-                    if ant.home.distance(transform.translation().xy()) <= 60.0 {
+                    if distance_to_home <= 60.0 {
                         nav.move_to = Some(ant.home);
 
                         return;
@@ -752,16 +756,15 @@ fn forager_ant_behavior(
                         WeightType::CloserTo(ant.home),
                         transform,
                     ) {
-                        let self_pos = transform.translation().xy();
                         let mut scent_vec = (ant.home - homebound_pos).normalize_or_zero();
                         scent_vec *= 10.0;
 
                         let scent_dest = homebound_pos + scent_vec;
 
-                        let mut dest_vec = (scent_dest - self_pos).normalize_or_zero();
-                        dest_vec *= self_pos.distance(scent_dest) + 5.0;
-                        let dest = self_pos + dest_vec;
-                        if dest.distance(ant.home) < mypos.distance(ant.home) {
+                        let mut dest_vec = (scent_dest - mypos).normalize_or_zero();
+                        dest_vec *= mypos.distance(scent_dest) + 5.0;
+                        let dest = mypos + dest_vec;
+                        if dest.distance(ant.home) < distance_to_home {
                             nav.move_to = Some(dest);
                             return;
                         }
