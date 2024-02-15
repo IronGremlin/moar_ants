@@ -1,16 +1,16 @@
 use std::{f32::consts::TAU, time::Duration};
 
-use bevy::{
-    ecs::query::Has,
-    math::Vec3Swizzles,
-    prelude::*,
-};
+use bevy::{ecs::query::Has, math::Vec3Swizzles, prelude::*};
 use bevy_prng::WyRand;
 use bevy_rand::resource::GlobalEntropy;
 use rand::prelude::*;
 
 use crate::{
-    ant::Carried, colony::{Colony, MaxFood}, gametimer::SimTimer, misc_utility::remap, SimState, SoundScape, SpatialMarker
+    ant::Carried,
+    colony::{Colony, MaxFood},
+    gametimer::SimTimer,
+    misc_utility::remap,
+    SimState, SoundScape, SpatialMarker,
 };
 
 pub struct FoodPlugin;
@@ -25,7 +25,11 @@ impl Plugin for FoodPlugin {
             )
             .add_systems(
                 Update,
-                (freebie_food_spawn.run_if(on_food_timer()), scale_food, apply_sprite_to_carried),
+                (
+                    freebie_food_spawn.run_if(on_food_timer),
+                    scale_food,
+                    apply_sprite_to_carried,
+                ),
             )
             .add_systems(PreUpdate, (cull_empty, process_food_delta).chain());
     }
@@ -72,16 +76,14 @@ const FOOD_CHUNK_MIN_STARTING_AMOUNT: i32 = 180;
 const FREEBIE_FOOD_CAP: usize = 200;
 const FREEBIE_FOOD_INTERVAL: u64 = 15;
 const BASELINE_EXCLUSION_DISTANCE: f32 = 65.0;
-const FOOD_MIN_SCALE :f32 = 0.125;
+const FOOD_MIN_SCALE: f32 = 0.125;
 
-fn on_food_timer() -> impl Condition<()> {
-    IntoSystem::into_system(|q: Query<&SimTimer, With<FoodSpawnTimer>>| {
-        if let Ok(food_timer) = q.get_single() {
-            food_timer.time.finished()
-        } else {
-            false
-        }
-    })
+fn on_food_timer(q: Query<&SimTimer, With<FoodSpawnTimer>>) -> bool {
+    if let Ok(food_timer) = q.get_single() {
+        food_timer.time.finished()
+    } else {
+        false
+    }
 }
 
 fn freebie_food_spawn(
@@ -89,7 +91,7 @@ fn freebie_food_spawn(
     mut sounds: EventWriter<SoundScape>,
     assets: Res<AssetServer>,
     mut rng: ResMut<GlobalEntropy<WyRand>>,
-    q: Query<(&GlobalTransform, &FoodQuant)>,
+    q: Query<(&GlobalTransform, &FoodQuant), Without<Carried>>,
 ) {
     if q.iter().len() >= FREEBIE_FOOD_CAP {
         return;
@@ -117,6 +119,7 @@ fn freebie_food_spawn(
             None
         }
     }
+
     if let Some(food_pos) = pos {
         let texture = assets.load("food_chunk.png");
         sounds.send(SoundScape::FoodSpawn);
@@ -169,30 +172,30 @@ fn scale_food(mut q: Query<(&mut Transform, &FoodQuant), (With<Sprite>, Without<
         transform.scale = Vec3::from((scale, scale, 1.0));
     });
 }
-fn apply_sprite_to_carried(mut commands: Commands,q:Query<(Entity,&FoodQuant, Has<Sprite>), (With<Carried>, With<Parent>) >, assets: Res<AssetServer>,) {
+fn apply_sprite_to_carried(
+    mut commands: Commands,
+    q: Query<(Entity, &FoodQuant, Has<Sprite>), (With<Carried>, With<Parent>)>,
+    assets: Res<AssetServer>,
+) {
     q.iter().for_each(|(entity, food, sprite)| {
         if food.0 != 0 && !sprite {
             let scale = FOOD_MIN_SCALE * 1.5;
-            let mut transform = Transform::from_xyz(0., 12.5, -0.1);
-                transform.scale = Vec3::from((scale, scale, 1.0));
-                let texture = assets.load("food_chunk.png");
-                commands.entity(entity).insert((
-                    SpriteBundle {
-                        texture,
-                        transform,
-                        ..default()
-                    },
-                ));
-                return;
+            let mut transform = Transform::from_xyz(0., 12.5, 0.1);
+            transform.scale = Vec3::from((scale, scale, 1.0));
+            let texture = assets.load("food_chunk.png");
+            commands.entity(entity).insert((SpriteBundle {
+                texture,
+                transform,
+                ..default()
+            },));
+            return;
         }
         if food.0 == 0 && sprite {
             commands.entity(entity).remove::<Sprite>();
             return;
         }
-
     })
 }
-
 
 fn cull_empty(
     mut commands: Commands,
@@ -218,7 +221,8 @@ fn process_food_delta(
             source_food.take_food(&mut dest_food, event.requested, maxfood.map(|x| x.0));
             // If we are an ant carrying food, and we tried to drop it off but the destination was full
             if was_carried && source_food.0 > 0 {
-                let scale = (source_food.0 as f32 / FOOD_CHUNK_MAX_STARTING_AMOUNT as f32).clamp(FOOD_MIN_SCALE, 1.0);
+                let scale = (source_food.0 as f32 / FOOD_CHUNK_MAX_STARTING_AMOUNT as f32)
+                    .clamp(FOOD_MIN_SCALE, 1.0);
                 let mut transform = Transform::from_xyz(0., 0., 0.1);
                 transform.scale = Vec3::from((scale, scale, 1.0));
                 let texture = assets.load("food_chunk.png");
@@ -235,4 +239,3 @@ fn process_food_delta(
         }
     }
 }
-
