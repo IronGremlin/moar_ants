@@ -1,5 +1,5 @@
-use bevy::{prelude::*, window::PrimaryWindow, winit::WinitWindows};
 use bevy::window::WindowMode;
+use bevy::{prelude::*, window::PrimaryWindow, winit::WinitWindows};
 
 pub struct AppSettingsPlugin;
 impl Plugin for AppSettingsPlugin {
@@ -22,7 +22,7 @@ pub enum SoundType {
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
 pub struct VolumeSettings {
-  pub  sfx_user_setting: f32,
+    pub sfx_user_setting: f32,
     pub music_user_setting: f32,
     pub global_user_setting: f32,
     pub sfx: f32,

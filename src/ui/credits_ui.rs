@@ -1,28 +1,26 @@
 use bevy::{prelude::*, ui::RelativeCursorPosition};
 
+use super::{
+    menu_ui::UIAnchorNode,
+    ui_util::{px, ProjectLocalStyle, UICommandsExt, ALL, LARGE, MEDIUM},
+};
 use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
 use leafwing_input_manager::{
     action_state::{ActionState, ActionStateDriver},
     axislike::SingleAxis,
     input_map::InputMap,
-    plugin::ToggleActions,
+    plugin::{InputManagerPlugin, ToggleActions},
     user_input::InputKind,
-    InputManagerBundle,
-};
-use super::{
-    menu_ui::UIAnchorNode,
-    ui_util::{px, ProjectLocalStyle, UICommandsExt, ALL, LARGE, MEDIUM},
+    Actionlike, InputManagerBundle,
 };
 
-use crate::{
-    playerinput::CreditsUIActions,
-    UIFocus,
-};
+use crate::UIFocus;
 
 pub struct CreditsPlugin;
 impl Plugin for CreditsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(UIFocus::Credits), instantiate_credits_ui)
+        app.add_plugins(InputManagerPlugin::<CreditsUIActions>::default())
+            .add_systems(OnEnter(UIFocus::Credits), instantiate_credits_ui)
             .add_systems(OnExit(UIFocus::Credits), teardown_credits)
             .add_systems(
                 Update,
@@ -65,6 +63,12 @@ impl ScrollableElement {
 
 #[derive(Component)]
 struct PixelsPerScroll(f32);
+
+#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
+pub enum CreditsUIActions {
+    ScrollCredits,
+    ExitCredits,
+}
 
 fn instantiate_credits_ui(
     mut commands: Commands,

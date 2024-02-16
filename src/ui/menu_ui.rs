@@ -3,12 +3,12 @@ use bevy::prelude::*;
 use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
 use leafwing_input_manager::{
     action_state::{ActionState, ActionStateDriver},
-    plugin::ToggleActions,
-    InputManagerBundle,
+    plugin::{InputManagerPlugin, ToggleActions},
+    Actionlike, InputManagerBundle,
 };
 
 use super::ui_util::ProjectLocalStyle;
-use crate::{playerinput::MainMenuUIActions, GameStarted, UIFocus};
+use crate::{GameStarted, UIFocus};
 
 pub struct MainMenuUI;
 
@@ -22,7 +22,8 @@ enum InputHandlers {
 
 impl Plugin for MainMenuUI {
     fn build(&self, app: &mut App) {
-        app.register_type::<UIAnchorNode>()
+        app.add_plugins(InputManagerPlugin::<MainMenuUIActions>::default())
+            .register_type::<UIAnchorNode>()
             .configure_sets(
                 Update,
                 InputHandlers::ButtonClick.run_if(in_state(UIFocus::MainMenu)),
@@ -51,6 +52,14 @@ impl Plugin for MainMenuUI {
 }
 #[derive(Resource, Reflect)]
 pub struct UIAnchorNode(pub Entity);
+
+#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
+pub enum MainMenuUIActions {
+    ExitMainMenu,
+    ExitGame,
+    OpenSettings,
+    OpenCredits,
+}
 
 fn open_menu_on_start(mut ui_focus: ResMut<NextState<UIFocus>>) {
     ui_focus.set(UIFocus::MainMenu);

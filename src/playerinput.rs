@@ -1,7 +1,14 @@
 use bevy::{prelude::*, window::PrimaryWindow};
 use leafwing_input_manager::{prelude::*, user_input::InputKind};
 
-use crate::{MainCamera, SimState, UIFocus};
+use crate::{
+    ui::{
+        credits_ui::CreditsUIActions,
+        menu_ui::MainMenuUIActions,
+        settings_menu::{AudioMenuUIActions, DisplaySettingsMenuUIActions, SettingsMenuUIActions},
+    },
+    MainCamera, SimState, UIFocus,
+};
 
 const CAMERA_PAN_SPEED_FACTOR: f32 = 10.0;
 pub struct PlayerInputPlugin;
@@ -10,11 +17,6 @@ impl Plugin for PlayerInputPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(InputManagerPlugin::<CameraControl>::default())
             .add_plugins(InputManagerPlugin::<GamefieldActions>::default())
-            .add_plugins(InputManagerPlugin::<MainMenuUIActions>::default())
-            .add_plugins(InputManagerPlugin::<CreditsUIActions>::default())
-            .add_plugins(InputManagerPlugin::<SettingsMenuUIActions>::default())
-            .add_plugins(InputManagerPlugin::<DisplaySettingsMenuUIActions>::default())
-            .add_plugins(InputManagerPlugin::<AudioMenuUIActions>::default())
             .add_systems(Startup, setup)
             .add_systems(
                 OnEnter(UIFocus::Gamefield),
@@ -41,38 +43,6 @@ pub enum GamefieldActions {
     OpenMainMenu,
 }
 
-#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
-pub enum MainMenuUIActions {
-    ExitMainMenu,
-    ExitGame,
-    OpenSettings,
-    OpenCredits,
-}
-
-#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
-pub enum SettingsMenuUIActions {
-    ToggleDisplaySettings,
-    ToggleAudioSettings,
-    ExitSettings,
-}
-#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
-pub enum CreditsUIActions {
-    ScrollCredits,
-    ExitCredits,
-}
-
-#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
-pub enum DisplaySettingsMenuUIActions {
-    ToggleResolutionSelection,
-    //TODO Figure some way to represent selection as an action
-    ToggleFullscreen,
-}
-
-#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
-pub enum AudioMenuUIActions {
-    SetMusicVolume,
-    SetSFXVolume,
-}
 fn setup(
     mut gamefield_actions: ResMut<ToggleActions<GamefieldActions>>,
     mut camera_actions: ResMut<ToggleActions<CameraControl>>,

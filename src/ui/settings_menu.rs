@@ -2,29 +2,27 @@ use bevy::{
     ecs::system::SystemParam, prelude::*, ui::RelativeCursorPosition, window::PrimaryWindow,
 };
 
-use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
-use leafwing_input_manager::{
-    action_state::{ActionState, ActionStateDriver},
-    plugin::ToggleActions,
-    InputManagerBundle,
-};
 use super::{
     menu_ui::UIAnchorNode,
     ui_util::{into_pct, px, ProjectLocalStyle, UICommandsExt, ALL, MEDIUM},
 };
-
-use crate::{
-    
-    playerinput::{AudioMenuUIActions, DisplaySettingsMenuUIActions, SettingsMenuUIActions},
-    
-    DisplaySettings, UIFocus, VolumeSettings,
+use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
+use leafwing_input_manager::{
+    action_state::{ActionState, ActionStateDriver},
+    plugin::{InputManagerPlugin, ToggleActions},
+    Actionlike, InputManagerBundle,
 };
+
+use crate::{DisplaySettings, UIFocus, VolumeSettings};
 
 pub struct SettingsMenuPlugin;
 
 impl Plugin for SettingsMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(UIFocus::SettingsMenu), instantiate_settings_menu)
+        app.add_plugins(InputManagerPlugin::<SettingsMenuUIActions>::default())
+            .add_plugins(InputManagerPlugin::<DisplaySettingsMenuUIActions>::default())
+            .add_plugins(InputManagerPlugin::<AudioMenuUIActions>::default())
+            .add_systems(OnEnter(UIFocus::SettingsMenu), instantiate_settings_menu)
             .add_systems(
                 Update,
                 (
@@ -72,6 +70,26 @@ pub struct UiRange(pub f32);
 
 #[derive(Component)]
 pub struct FillBar;
+
+#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
+pub enum SettingsMenuUIActions {
+    ToggleDisplaySettings,
+    ToggleAudioSettings,
+    ExitSettings,
+}
+
+#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
+pub enum DisplaySettingsMenuUIActions {
+    ToggleResolutionSelection,
+    //TODO Figure some way to represent selection as an action
+    ToggleFullscreen,
+}
+
+#[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
+pub enum AudioMenuUIActions {
+    SetMusicVolume,
+    SetSFXVolume,
+}
 
 fn instantiate_settings_menu(
     mut commands: Commands,
