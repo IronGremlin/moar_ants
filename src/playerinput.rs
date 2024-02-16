@@ -43,6 +43,7 @@ pub enum GamefieldActions {
     OpenMainMenu,
 }
 
+// TODO - We should really figure out a way to clean this up so that the input module doesn't have to import every UI module forever.
 fn setup(
     mut gamefield_actions: ResMut<ToggleActions<GamefieldActions>>,
     mut camera_actions: ResMut<ToggleActions<CameraControl>>,

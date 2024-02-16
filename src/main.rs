@@ -93,6 +93,7 @@ fn main() {
             Startup,
             (
                 setup,
+                //we need to force the scaling for volume settings to take effect before loading the music.
                 crate::app_settings::populate_volume_settings_changes,
                 play_music,
             )

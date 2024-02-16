@@ -217,6 +217,8 @@ impl Command for AntSpawn {
         if ant_pop.0 < ant_cap.0 {
             let mut pos = Transform::from_xyz(self.home.x, self.home.y, 2.);
             pos.scale = Vec3::from((0.4, 0.4, 1.0));
+            // We explicitly use a linear sampling mode here in order to provide a soft edge effect to our ants.
+            // This is necessary because otherwise when many ants would stack together, they would render as an amorphous blue blob.
             let texture = assets.load_with_settings("ant.png", |s: &mut ImageLoaderSettings| {
                 s.sampler = ImageSampler::Descriptor(ImageSamplerDescriptor::linear())
             });
