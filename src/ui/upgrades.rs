@@ -1,13 +1,14 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
 
 use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
 use std::marker::PhantomData;
 
+use super::ui_util::{px, ProjectLocalStyle, ALL, SMALL};
+
 use crate::{
     ant::AntSettings,
-    colony::{AntCapacity, Colony, MaxFood},
+    colony::{AntCapacity, Colony, MaxFood, UpgradeStringIndex},
     food::FoodQuant,
-    ui_helpers::{px, ProjectLocalStyle, ALL, SMALL},
 };
 
 pub struct UpgradePlugin;
@@ -620,22 +621,7 @@ impl ColonyUpgrade for AntMaxPop {
     }
 }
 
-#[derive(Component)]
-pub struct UpgradeStringIndex {
-    pub costs: HashMap<String, i32>,
-}
-impl UpgradeStringIndex {
-    pub fn new() -> Self {
-        UpgradeStringIndex {
-            costs: HashMap::new(),
-        }
-    }
-    pub fn increment_index(&mut self, upgrade: String) {
-        self.costs.get_mut(&upgrade).map(|x| {
-            *x += 1;
-        });
-    }
-}
+
 
 fn squarish(i: i32, flattener: f32, scalar: f32) -> f32 {
     let f = i as f32;

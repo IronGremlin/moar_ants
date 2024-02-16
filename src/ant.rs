@@ -19,13 +19,14 @@ use rand::prelude::*;
 use bevy_prng::WyRand;
 
 use crate::{
+    nav::DistanceAwareQuery,
     colony::{AntCapacity, AntPopulation, Colony, LaborData, LaborPhase},
     food::{FoodDeltaEvent, FoodQuant},
     gametimer::{scaled_time, SimTimer, TickRate},
     gizmodable::{GizmoDrawOp, GizmoSystemSet, VisualDebug},
     misc_utility::NaNGuard,
-    scentmap::{self, ScentMap, ScentSettings, ScentType, WeightType},
-    spatial_helper::DistanceAwareQuery,
+    nav::scent::{ScentMap, ScentSettings, ScentType, WeightType},
+    
     AntSpatialMarker, SimState, SoundScape, SpatialMarker,
 };
 
@@ -889,7 +890,7 @@ fn ant_stink(
         scentmap.log_scent(
             max_smell,
             transform,
-            scentmap::ScentType::AntSmell,
+            ScentType::AntSmell,
             strength,
         );
 
@@ -898,7 +899,7 @@ fn ant_stink(
                 scentmap.log_scent(
                     max_smell,
                     transform,
-                    scentmap::ScentType::FoundFoodSmell,
+                    ScentType::FoundFoodSmell,
                     strength,
                 );
             }

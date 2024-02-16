@@ -1,20 +1,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod ant;
 mod colony;
-mod credits_ui;
+mod ui;
 mod food;
-mod gamefield_ui;
 mod gametimer;
 mod gizmodable;
 mod larva;
-mod menu_ui;
 mod misc_utility;
 mod playerinput;
-mod scentmap;
-mod settings_menu;
-mod spatial_helper;
-mod ui_helpers;
-mod upgrades;
+mod nav;
+
 
 use std::time::Duration;
 
@@ -32,18 +27,14 @@ use bevy_prng::WyRand;
 use bevy_rand::prelude::*;
 use bevy_spatial::{AutomaticUpdate, SpatialStructure};
 use colony::ColonyPlugin;
-use credits_ui::CreditsPlugin;
 use food::FoodPlugin;
-use gamefield_ui::GamefieldUI;
 use gametimer::GameTimerPlugin;
-
 use gizmodable::Gizmotastic;
 use larva::LarvaPlugin;
-use menu_ui::MainMenuUI;
 use playerinput::PlayerInputPlugin;
-use scentmap::ScentMapPlugin;
-use settings_menu::SettingsMenuPlugin;
-use upgrades::UpgradePlugin;
+use nav::ScentMapPlugin;
+use ui::{MainMenuUI, CreditsPlugin, SettingsMenuPlugin, UpgradePlugin,GamefieldUI};
+
 
 fn main() {
     App::new()

@@ -9,11 +9,13 @@ use leafwing_input_manager::{
     user_input::InputKind,
     InputManagerBundle,
 };
+use super::{
+    menu_ui::UIAnchorNode,
+    ui_util::{px, ProjectLocalStyle, UICommandsExt, ALL, LARGE, MEDIUM},
+};
 
 use crate::{
-    menu_ui::UIAnchorNode,
     playerinput::CreditsUIActions,
-    ui_helpers::{px, ProjectLocalStyle, UICommandsExt, ALL, LARGE, MEDIUM},
     UIFocus,
 };
 

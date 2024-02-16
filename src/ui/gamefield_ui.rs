@@ -3,44 +3,22 @@ use std::{marker::PhantomData, time::Duration};
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::ToggleActions;
 
+use super::{
+    menu_ui::UIAnchorNode,
+    ui_util::*,
+    upgrades::spawn_upgrade_buttons,
+};
 use crate::{
     ant::{ForagerAnt, IdleAnt, NursemaidAnt},
     colony::{AntCapacity, AntPopulation, Colony, LaborData, LaborPhase, LarvaTarget, MaxFood},
     food::FoodQuant,
-    menu_ui::UIAnchorNode,
     playerinput::{CameraControl, GamefieldActions},
-    ui_helpers::*,
-    upgrades::spawn_upgrade_buttons,
     UIFocus,
 };
 use bevy_nine_slice_ui::*;
 
 pub struct GamefieldUI;
 
-#[derive(Component)]
-pub struct GamefieldUIRoot;
-#[derive(Component)]
-pub struct GamefieldUIFoodLabel;
-#[derive(Component)]
-pub struct GamefieldUIAntPopLabel;
-
-#[derive(Component)]
-struct GamefieldUIFoodBar;
-#[derive(Component)]
-struct GamefieldUIAntBar;
-
-#[derive(Component, Default)]
-struct AntCount<T: Component + Default> {
-    marker: PhantomData<T>,
-}
-
-#[derive(Component)]
-struct LarvaPlus;
-#[derive(Component)]
-struct LarvaMinus;
-
-#[derive(Component)]
-struct TargetLarvaDisplay;
 
 impl Plugin for GamefieldUI {
     fn build(&self, app: &mut App) {
@@ -70,6 +48,32 @@ impl Plugin for GamefieldUI {
             );
     }
 }
+
+#[derive(Component)]
+pub struct GamefieldUIRoot;
+#[derive(Component)]
+pub struct GamefieldUIFoodLabel;
+#[derive(Component)]
+pub struct GamefieldUIAntPopLabel;
+
+#[derive(Component)]
+struct GamefieldUIFoodBar;
+#[derive(Component)]
+struct GamefieldUIAntBar;
+
+#[derive(Component, Default)]
+struct AntCount<T: Component + Default> {
+    marker: PhantomData<T>,
+}
+
+#[derive(Component)]
+struct LarvaPlus;
+#[derive(Component)]
+struct LarvaMinus;
+
+#[derive(Component)]
+struct TargetLarvaDisplay;
+
 fn activate_gamefield_actions(
     mut gamefield_actions: ResMut<ToggleActions<GamefieldActions>>,
     mut camera_actions: ResMut<ToggleActions<CameraControl>>,

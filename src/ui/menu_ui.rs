@@ -7,7 +7,8 @@ use leafwing_input_manager::{
     InputManagerBundle,
 };
 
-use crate::{playerinput::MainMenuUIActions, ui_helpers::ProjectLocalStyle, GameStarted, UIFocus};
+use super::ui_util::ProjectLocalStyle;
+use crate::{playerinput::MainMenuUIActions, GameStarted, UIFocus};
 
 pub struct MainMenuUI;
 

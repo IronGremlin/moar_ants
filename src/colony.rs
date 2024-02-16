@@ -1,6 +1,6 @@
 use std::{f32::consts::TAU, marker::PhantomData};
 
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use bevy_prng::WyRand;
 use bevy_rand::resource::GlobalEntropy;
 use rand::Rng;
@@ -10,11 +10,27 @@ use crate::{
     food::FoodQuant,
     gizmodable::{GizmoDrawOp, VisualDebug},
     larva::LarvaSettings,
-    upgrades::UpgradeStringIndex,
     UIFocus,
 };
 
 pub struct ColonyPlugin;
+
+#[derive(Component)]
+pub struct UpgradeStringIndex {
+    pub costs: HashMap<String, i32>,
+}
+impl UpgradeStringIndex {
+    pub fn new() -> Self {
+        UpgradeStringIndex {
+            costs: HashMap::new(),
+        }
+    }
+    pub fn increment_index(&mut self, upgrade: String) {
+        self.costs.get_mut(&upgrade).map(|x| {
+            *x += 1;
+        });
+    }
+}
 
 const STARTING_ANT_CAP: i32 = 35;
 #[derive(Component)]
