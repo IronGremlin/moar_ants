@@ -7,3 +7,10 @@ Licensed under Creative Commons: By Attribution 4.0 License
 http://creativecommons.org/licenses/by/4.0/
 )
 
+File: "monogram.ttf"
+Credits: 
+(
+"monogram" data goblin (datagoblin.itch.io)
+Marked with CC0 1.0 Universal 
+https://creativecommons.org/publicdomain/zero/1.0/
+)

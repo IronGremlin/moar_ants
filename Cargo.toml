@@ -1,6 +1,6 @@
 [package]
-name = "ant_proj_1"
-version = "0.1.0"
+name = "moar_ants"
+version = "0.0.1"
 edition = "2021"
 
 [profile.dev]
@@ -8,12 +8,8 @@ opt-level = 1
 [profile.dev.package."*"]
 opt-level = 3
 
-[profile.release]
-debug = true
-strip = false
 
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 bevy = { version = "0.12.1", features = ["trace", "wav","mp3"]}
