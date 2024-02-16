@@ -621,8 +621,6 @@ impl ColonyUpgrade for AntMaxPop {
     }
 }
 
-
-
 fn squarish(i: i32, flattener: f32, scalar: f32) -> f32 {
     let f = i as f32;
     (f * (f / flattener)) * scalar

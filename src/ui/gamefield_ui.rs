@@ -3,11 +3,7 @@ use std::{marker::PhantomData, time::Duration};
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::ToggleActions;
 
-use super::{
-    menu_ui::UIAnchorNode,
-    ui_util::*,
-    upgrades::spawn_upgrade_buttons,
-};
+use super::{menu_ui::UIAnchorNode, ui_util::*, upgrades::spawn_upgrade_buttons};
 use crate::{
     ant::{ForagerAnt, IdleAnt, NursemaidAnt},
     colony::{AntCapacity, AntPopulation, Colony, LaborData, LaborPhase, LarvaTarget, MaxFood},
@@ -18,7 +14,6 @@ use crate::{
 use bevy_nine_slice_ui::*;
 
 pub struct GamefieldUI;
-
 
 impl Plugin for GamefieldUI {
     fn build(&self, app: &mut App) {

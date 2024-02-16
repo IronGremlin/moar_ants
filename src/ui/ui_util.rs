@@ -1,12 +1,7 @@
-
-
-use bevy::{
-    ecs::system::EntityCommands,
-    prelude::*,
-};
+use bevy::{ecs::system::EntityCommands, prelude::*};
 
 pub const SMALL: f32 = 12.;
-pub const MEDIUM :f32 = 16.;
+pub const MEDIUM: f32 = 16.;
 pub const LARGE: f32 = 24.;
 
 #[derive(Default)]

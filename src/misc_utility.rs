@@ -51,16 +51,13 @@ impl NaNGuard for Vec3 {
     }
 }
 
-
-
-
 pub fn lerp(min: f32, max: f32, t: f32) -> f32 {
     ((1.0 - t) * min) + (t * max)
 }
 pub fn inv_lerp(min: f32, max: f32, v: f32) -> f32 {
-    (v - min) / (max -min)
+    (v - min) / (max - min)
 }
-pub fn remap(source_min: f32, source_max:f32, dest_min:f32, dest_max:f32, v: f32) -> f32 {
+pub fn remap(source_min: f32, source_max: f32, dest_min: f32, dest_max: f32, v: f32) -> f32 {
     let relative = inv_lerp(source_min, source_max, v);
-    lerp(dest_min,dest_max, relative)
+    lerp(dest_min, dest_max, relative)
 }

@@ -19,14 +19,13 @@ use rand::prelude::*;
 use bevy_prng::WyRand;
 
 use crate::{
-    nav::DistanceAwareQuery,
     colony::{AntCapacity, AntPopulation, Colony, LaborData, LaborPhase},
     food::{FoodDeltaEvent, FoodQuant},
     gametimer::{scaled_time, SimTimer, TickRate},
     gizmodable::{GizmoDrawOp, GizmoSystemSet, VisualDebug},
     misc_utility::NaNGuard,
     nav::scent::{ScentMap, ScentSettings, ScentType, WeightType},
-    
+    nav::DistanceAwareQuery,
     AntSpatialMarker, SimState, SoundScape, SpatialMarker,
 };
 
@@ -53,7 +52,7 @@ impl Plugin for AntPlugin {
                         nav_debug,
                     )
                         .before(GizmoSystemSet::GizmoQueueDraw),
-                    (ant_i_gravity,  navigate_move, tokyo,)
+                    (ant_i_gravity, navigate_move, tokyo)
                         .chain()
                         .run_if(in_state(SimState::Playing)),
                 )
@@ -282,59 +281,60 @@ fn navigate_move(
         .as_secs_f32()
         .clamp(f32::EPSILON, 1.0);
 
-    q.par_iter_mut().for_each(|(global_transform, mut transform, mut nav)| {
-        if let Some(destination) = nav.move_to {
-            if destination.is_nan() {
-                nav.move_to = None;
-                return;
+    q.par_iter_mut()
+        .for_each(|(global_transform, mut transform, mut nav)| {
+            if let Some(destination) = nav.move_to {
+                if destination.is_nan() {
+                    nav.move_to = None;
+                    return;
+                }
+                let mut pos_2d = global_transform.translation().xy();
+                let max_speed = destination.distance(pos_2d);
+                let mut scaled_speed = (nav.max_speed * frame_delta).clamp(0.0, max_speed);
+                let scaled_rot_speed = nav.max_radians_per_sec * frame_delta;
+
+                let mut vec = (destination - pos_2d).normalize();
+                let facing = (transform.rotation * Vec3::Y).xy();
+                let angle_delta = vec.angle_between(facing);
+
+                //If we're ~ one frame away just teleport there - this fixes a host of xeno's paradox type edge-cases.
+                if destination.distance(pos_2d) <= (scaled_speed * 1.3) {
+                    transform.translation = destination.extend(2.0);
+                    nav.move_to = None;
+                    return;
+                }
+
+                // Figure out if our destination is inside our turn radius
+                let turn_radius = nav.max_speed / nav.max_radians_per_sec;
+                let face_angle = Vec2::Y.angle_between(facing);
+                //These should represent the respective centers of our left + right "deadzones"
+                let left_void_center = (Vec2::from_angle(face_angle + PI) * turn_radius) + pos_2d;
+                let right_void_center = (Vec2::from_angle(face_angle) * turn_radius) + pos_2d;
+
+                //If our destination is within our deadzones, scale down our speed based on the arc we'd need to make to get there
+
+                if destination.distance(left_void_center) < turn_radius
+                    || destination.distance(right_void_center) < turn_radius
+                {
+                    scaled_speed = nav.max_radians_per_sec * (destination.distance(pos_2d) / 2.0)
+                        / angle_delta.cos();
+                    scaled_speed = (scaled_speed * frame_delta).clamp(0.0, max_speed);
+                }
+
+                if f32::abs(angle_delta) > scaled_rot_speed {
+                    let adjusted_angle = -f32::signum(angle_delta) * scaled_rot_speed;
+                    transform.rotate_local_axis(Vec3::Z, adjusted_angle);
+                    vec = (transform.rotation * Vec3::Y).xy();
+                } else {
+                    transform.rotate_local_axis(Vec3::Z, -angle_delta);
+                }
+                vec *= scaled_speed;
+
+                pos_2d += vec;
+
+                transform.translation = Vec3::from((pos_2d, 2.));
             }
-            let mut pos_2d = global_transform.translation().xy();
-            let max_speed = destination.distance(pos_2d);
-            let mut scaled_speed = (nav.max_speed * frame_delta).clamp(0.0, max_speed);
-            let scaled_rot_speed = nav.max_radians_per_sec * frame_delta;
-
-            let mut vec = (destination - pos_2d).normalize();
-            let facing = (transform.rotation * Vec3::Y).xy();
-            let angle_delta = vec.angle_between(facing);
-
-            //If we're ~ one frame away just teleport there - this fixes a host of xeno's paradox type edge-cases.
-            if destination.distance(pos_2d) <= (scaled_speed * 1.3) {
-                transform.translation = destination.extend(2.0);
-                nav.move_to = None;
-                return;
-            }
-
-            // Figure out if our destination is inside our turn radius
-            let turn_radius = nav.max_speed / nav.max_radians_per_sec;
-            let face_angle = Vec2::Y.angle_between(facing);
-            //These should represent the respective centers of our left + right "deadzones"
-            let left_void_center = (Vec2::from_angle(face_angle + PI) * turn_radius) + pos_2d;
-            let right_void_center = (Vec2::from_angle(face_angle) * turn_radius) + pos_2d;
-
-            //If our destination is within our deadzones, scale down our speed based on the arc we'd need to make to get there
-
-            if destination.distance(left_void_center) < turn_radius
-                || destination.distance(right_void_center) < turn_radius
-            {
-                scaled_speed = nav.max_radians_per_sec * (destination.distance(pos_2d) / 2.0)
-                    / angle_delta.cos();
-                scaled_speed = (scaled_speed * frame_delta).clamp(0.0, max_speed);
-            }
-
-            if f32::abs(angle_delta) > scaled_rot_speed {
-                let adjusted_angle = -f32::signum(angle_delta) * scaled_rot_speed;
-                transform.rotate_local_axis(Vec3::Z, adjusted_angle);
-                vec = (transform.rotation * Vec3::Y).xy();
-            } else {
-                transform.rotate_local_axis(Vec3::Z, -angle_delta);
-            }
-            vec *= scaled_speed;
-
-            pos_2d += vec;
-
-            transform.translation = Vec3::from((pos_2d, 2.));
-        }
-    });
+        });
 }
 fn nav_debug(mut q: Query<(&Transform, &Navigate, &mut VisualDebug)>) {
     q.iter_mut().for_each(|(transform, nav, mut dbg)| {
@@ -366,12 +366,13 @@ fn ant_i_gravity(
         let mut count = 0;
 
         let big_vec = nearby_ants
-             .filter(|x| x.translation().xy() != mypos)
+            .filter(|x| x.translation().xy() != mypos)
             .map(|ant_transform| {
                 count += 1;
                 let antpos = ant_transform.translation().xy();
                 let dist = mypos.distance(antpos);
-                let magnitude = ((dist * dist).recip() * ant_settings.ant_i_gravity).clamp(0., ant_settings.ant_i_gravity_max);
+                let magnitude = ((dist * dist).recip() * ant_settings.ant_i_gravity)
+                    .clamp(0., ant_settings.ant_i_gravity_max);
 
                 let dir = (mypos - antpos).normalize_or_zero();
                 dir * magnitude
@@ -395,27 +396,31 @@ fn ant_i_gravity(
             .min(ant_settings.ant_i_gravity_max);
     })
 }
-fn tokyo(mut q: Query<(&mut Transform, &mut VisualDebug, &mut Navigate, &mut Drift), With<Ant>>, time: Res<Time>) {
+fn tokyo(
+    mut q: Query<(&mut Transform, &mut VisualDebug, &mut Navigate, &mut Drift), With<Ant>>,
+    time: Res<Time>,
+) {
     let max_drift = 0.9 * ANT_MOVE_SPEED;
-    q.par_iter_mut().for_each(|(mut transform, mut dbg, mut nav, mut drift)| {
-        if drift.mag > 0.1 {
-            let scaled_magnitude =
-                (drift.mag.clamp(0.0, max_drift) * time.delta_seconds()).nan_guard(0.0);
-            let adj = (scaled_magnitude * drift.vec).nan_guard(Vec2::ZERO);
-            let zed = transform.translation.z;
-            dbg.add(GizmoDrawOp::line(
-                transform.translation.xy(),
-                transform.translation.xy() + (drift.vec * drift.mag),
-                Color::PURPLE,
-            ));
-            if let Some(dest) = nav.move_to {
-                nav.move_to = Some(dest + adj);
-            }
-            transform.translation += adj.extend(zed);
+    q.par_iter_mut()
+        .for_each(|(mut transform, mut dbg, mut nav, mut drift)| {
+            if drift.mag > 0.1 {
+                let scaled_magnitude =
+                    (drift.mag.clamp(0.0, max_drift) * time.delta_seconds()).nan_guard(0.0);
+                let adj = (scaled_magnitude * drift.vec).nan_guard(Vec2::ZERO);
+                let zed = transform.translation.z;
+                dbg.add(GizmoDrawOp::line(
+                    transform.translation.xy(),
+                    transform.translation.xy() + (drift.vec * drift.mag),
+                    Color::PURPLE,
+                ));
+                if let Some(dest) = nav.move_to {
+                    nav.move_to = Some(dest + adj);
+                }
+                transform.translation += adj.extend(zed);
 
-            drift.mag -= scaled_magnitude * 1.1;
-        }
-    })
+                drift.mag -= scaled_magnitude * 1.1;
+            }
+        })
 }
 
 fn select_random_wander_pos(
@@ -516,7 +521,12 @@ fn task_ants(
             nurse_vaccancies -= 1;
             return;
         }
-        if forager_vaccancies < 0 && !matches!(behavior, ForagerAnt::BringingHomeFood | ForagerAnt::FollowingTrail) {
+        if forager_vaccancies < 0
+            && !matches!(
+                behavior,
+                ForagerAnt::BringingHomeFood | ForagerAnt::FollowingTrail
+            )
+        {
             commands.apply_assignment::<IdleAnt>(entity);
             forager_vaccancies += 1;
         }
@@ -736,7 +746,9 @@ fn forager_ant_behavior(
                 (ForagerAnt::BringingHomeFood, _) | (ForagerAnt::GoingHomeEmpty, false) => {
                     let distance_to_home = mypos.distance(ant.home);
                     let distance_to_origin = mypos.distance(Vec2::ZERO);
-                    if  distance_to_home <= 3.0 || (distance_to_home > distance_to_origin && distance_to_origin <= 25.0) {
+                    if distance_to_home <= 3.0
+                        || (distance_to_home > distance_to_origin && distance_to_origin <= 25.0)
+                    {
                         for child in children.iter() {
                             if let Ok((entity, carried_food)) = carried_q.get(*child) {
                                 foodevents.send(FoodDeltaEvent {
@@ -748,7 +760,7 @@ fn forager_ant_behavior(
                         }
 
                         *behavior = ForagerAnt::default();
-                        
+
                         return;
                     }
                     if distance_to_home <= 60.0 {
@@ -887,21 +899,11 @@ fn ant_stink(
     q.iter().for_each(|(behavior, transform)| {
         let innerspan = info_span!("ant stink loop iter");
         let _ = innerspan.enter();
-        scentmap.log_scent(
-            max_smell,
-            transform,
-            ScentType::AntSmell,
-            strength,
-        );
+        scentmap.log_scent(max_smell, transform, ScentType::AntSmell, strength);
 
         match behavior {
             Some(ForagerAnt::BringingHomeFood) => {
-                scentmap.log_scent(
-                    max_smell,
-                    transform,
-                    ScentType::FoundFoodSmell,
-                    strength,
-                );
+                scentmap.log_scent(max_smell, transform, ScentType::FoundFoodSmell, strength);
             }
             _ => {}
         }
