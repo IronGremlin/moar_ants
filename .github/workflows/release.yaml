@@ -48,8 +48,9 @@ jobs:
           cargo build --profile dist
       - name: Prepare and Deploy Release
         run: |
-          mkdir dist/ && cp -r assets dist/
-          cp target/dist/moar-ants.exe dist/
+          mkdir dist/
+          cp -r assets dist/
+          cp target/dist/moar_ants.exe dist/
           ./butler/butler.exe push dist irongremlin/moar-ants:win --userversion "$env:VERSION"
       
 
