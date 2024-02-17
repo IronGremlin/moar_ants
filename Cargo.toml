@@ -9,6 +9,20 @@ opt-level = 1
 opt-level = 3
 
 
+[profile.release]
+opt-level = "s"
+codegen-units = 1
+lto = true
+strip = true
+
+[profile.dist]
+inherits = "release"
+opt-level = 3
+codegen-units = 1
+lto = true
+strip = true
+
+
 
 
 [dependencies]

@@ -1,0 +1,55 @@
+# Heavily inspired by -  https://github.com/NiklasEi/bevy_game_template
+
+name: release-flow
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version - in the form of v1.2.3'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  get-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get tag
+        id: tag
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+    outputs:
+      version: ${{ inputs.version || steps.tag.outputs.tag }}
+
+  build-windows:
+    runs-on: windows-latest
+    needs: get-version
+    env:
+      VERSION: ${{needs.get-version.outputs.version}}
+      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Download Butler
+        run: |
+          Invoke-WebRequest https://broth.itch.zone/butler/windows-amd64/15.21.0/archive/default -OutFile butler.zip
+          Expand-Archive -LiteralPath 'butler.zip' -DestinationPath './butler'
+      - name: Build Release
+        run: |
+          cargo build --profile dist
+      - name: Prepare and Deploy Release
+        run: |
+          mkdir dist/ && cp -r assets dist/
+          cp target/dist/moar-ants.exe dist/
+          ./butler/butler.exe push dist irongremlin/moar-ants:win --userversion "$env:VERSION"
+      
+
