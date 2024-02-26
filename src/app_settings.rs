@@ -1,16 +1,98 @@
+use bevy::ecs::system::{Resource, SystemParam};
 use bevy::window::WindowMode;
 use bevy::{prelude::*, window::PrimaryWindow, winit::WinitWindows};
+use bevy_persistent::prelude::*;
+use serde::{Deserialize, Serialize};
+
+use crate::InitializationPhase;
 
 pub struct AppSettingsPlugin;
 impl Plugin for AppSettingsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
+            Startup,
+            (
+                initialize_persistent_app_settings,
+                apply_deferred,
+                load_app_settings,
+                apply_deferred,
+            )
+                .chain()
+                .in_set(InitializationPhase::LoadConfigurations),
+        )
+        .add_systems(
             Update,
             (
                 populate_volume_settings_changes.run_if(volume_changed),
                 populate_display_settings_changes.run_if(display_changed),
             ),
         );
+    }
+}
+
+#[derive(Resource, Serialize, Deserialize)]
+#[serde(tag = "version")]
+enum UserSettings {
+    V1 {
+        global_volume: f32,
+        sfx_volume: f32,
+        music_volume: f32,
+
+        resolution: (f32, f32),
+        fullscreen: bool,
+
+        display_first_time_help: bool,
+    },
+}
+impl UserSettings {
+    fn volume_settings(&self) -> VolumeSettings {
+        match self {
+            Self::V1 {
+                global_volume,
+                sfx_volume,
+                music_volume,
+                ..
+            } => {
+                let mut settings = VolumeSettings {
+                    global_user_setting: *global_volume,
+                    sfx_user_setting: *sfx_volume,
+                    music_user_setting: *music_volume,
+                    ..default()
+                };
+                settings.refresh_volume_levels();
+                settings
+            }
+        }
+    }
+    fn display_settings(&self) -> DisplaySettings {
+        match self {
+            UserSettings::V1 {
+                resolution,
+                fullscreen,
+                ..
+            } => DisplaySettings {
+                resolution: *resolution,
+                fullscreen: *fullscreen,
+            },
+        }
+    }
+    //placeholder for future versions.
+    fn migrate(&mut self) {
+        match self {
+            Self::V1 { .. } => {}
+        }
+    }
+}
+impl Default for UserSettings {
+    fn default() -> Self {
+        Self::V1 {
+            global_volume: 0.5,
+            sfx_volume: 0.5,
+            music_volume: 0.5,
+            resolution: (1280., 720.),
+            fullscreen: true,
+            display_first_time_help: true,
+        }
     }
 }
 
@@ -79,6 +161,61 @@ impl Default for VolumeSettings {
     }
 }
 
+#[derive(SystemParam)]
+pub struct ApplicationSettings<'w> {
+    user_settings: ResMut<'w, Persistent<UserSettings>>,
+    volume_settings: Res<'w, VolumeSettings>,
+    display_settings: Res<'w, DisplaySettings>,
+}
+impl ApplicationSettings<'_> {
+    pub fn save_app_settings(&mut self) {
+        //AFAICT this is a false positive on this lint error
+        #[allow(unused_mut)]
+        let mut da_settings = self.user_settings.get_mut();
+        let UserSettings::V1 {
+            display_first_time_help,
+            ..
+        } = da_settings;
+        *da_settings = UserSettings::V1 {
+            global_volume: self.volume_settings.global_user_setting,
+            sfx_volume: self.volume_settings.sfx_user_setting,
+            music_volume: self.volume_settings.music_user_setting,
+            resolution: self.display_settings.resolution,
+            fullscreen: self.display_settings.fullscreen,
+            display_first_time_help: *display_first_time_help,
+        };
+
+        self.user_settings
+            .persist()
+            .expect("failed to persist user supplied settings");
+    }
+    pub fn register_introductory_help(&mut self) {
+        //AFAICT this is a false positive on this lint error
+        #[allow(unused_mut)]
+        let mut da_settings = self.user_settings.get_mut();
+        let UserSettings::V1 {
+            global_volume,
+            sfx_volume,
+            music_volume,
+            fullscreen,
+            resolution,
+            ..
+        } = da_settings;
+        *da_settings = UserSettings::V1 {
+            global_volume: *global_volume,
+            sfx_volume: *sfx_volume,
+            music_volume: *music_volume,
+            resolution: *resolution,
+            fullscreen: *fullscreen,
+            display_first_time_help: false,
+        };
+
+        self.user_settings
+            .persist()
+            .expect("failed to persist user supplied settings");
+    }
+}
+
 fn volume_changed(settings: Res<VolumeSettings>) -> bool {
     settings.is_changed()
 }
@@ -141,4 +278,23 @@ fn populate_display_settings_changes(
     } else {
         WindowMode::Windowed
     };
+}
+
+fn initialize_persistent_app_settings(mut commands: Commands) {
+    let cfg_dir = dirs::config_dir().unwrap().join("moar_ants");
+    commands.insert_resource(
+        Persistent::<UserSettings>::builder()
+            .name("user settings")
+            .format(StorageFormat::Json)
+            .path(cfg_dir.join("player_settings.json"))
+            .default(UserSettings::default())
+            .build()
+            .expect("failed to initialize player settings"),
+    );
+}
+fn load_app_settings(mut commands: Commands, mut user_settings: ResMut<Persistent<UserSettings>>) {
+    user_settings.migrate();
+    user_settings.persist().expect("settings migration error");
+    commands.insert_resource::<VolumeSettings>(user_settings.volume_settings());
+    commands.insert_resource::<DisplaySettings>(user_settings.display_settings());
 }

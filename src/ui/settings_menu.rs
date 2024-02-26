@@ -13,7 +13,7 @@ use leafwing_input_manager::{
     Actionlike, InputManagerBundle,
 };
 
-use crate::{DisplaySettings, UIFocus, VolumeSettings};
+use crate::{app_settings::ApplicationSettings, DisplaySettings, UIFocus, VolumeSettings};
 
 pub struct SettingsMenuPlugin;
 
@@ -549,6 +549,7 @@ fn settings_menu_teardown(
     mut settings_menu_actions: ResMut<ToggleActions<SettingsMenuUIActions>>,
     mut audio_settings_actions: ResMut<ToggleActions<AudioMenuUIActions>>,
     mut display_settings_actions: ResMut<ToggleActions<DisplaySettingsMenuUIActions>>,
+    mut app_settings: ApplicationSettings
 ) {
     settings_menu_actions.enabled = false;
     audio_settings_actions.enabled = false;
@@ -557,6 +558,7 @@ fn settings_menu_teardown(
     q.iter().for_each(|entity| {
         commands.entity(entity).despawn_recursive();
     });
+    app_settings.save_app_settings();
 }
 fn activate_display_settings_card(
     q: Query<&ActionState<SettingsMenuUIActions>>,

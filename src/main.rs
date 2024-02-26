@@ -89,19 +89,25 @@ fn main() {
             FoodPlugin,
             GamefieldUI,
         ))
+        .configure_sets(Startup, 
+            (
+                (InitializationPhase::LoadFont, InitializationPhase::LoadConfigurations),
+                (InitializationPhase::InitializeDisplay,InitializationPhase::InitializeAudio)
+        ).chain()
+        )
         .add_systems(
             Startup,
             (
-                setup,
-                //we need to force the scaling for volume settings to take effect before loading the music.
-                crate::app_settings::populate_volume_settings_changes,
-                play_music,
-            )
+                load_custom_font.in_set(InitializationPhase::LoadFont),
+                boot_camera.in_set(InitializationPhase::InitializeDisplay),
+                play_music.in_set(InitializationPhase::InitializeAudio),
+
+           )
                 .chain(),
         )
         .add_systems(
             First,
-            set_default_font.run_if(resource_exists::<DefaultFontHandle>()),
+            override_default_font.run_if(resource_exists::<DefaultFontHandle>()),
         )
         .add_systems(
             OnEnter(UIFocus::Gamefield),
@@ -120,6 +126,14 @@ pub struct SpatialMarker;
 
 #[derive(Component, Default)]
 pub struct AntSpatialMarker;
+
+#[derive(SystemSet, Hash, Debug, PartialEq, Eq, Clone)]
+pub enum InitializationPhase {
+    LoadFont,
+    LoadConfigurations,
+    InitializeDisplay,
+    InitializeAudio
+}
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum SimState {
@@ -155,14 +169,16 @@ struct DefaultFontHandle(Handle<Font>);
 #[derive(Component)]
 pub struct MainMusicTrack;
 
-fn setup(
-    mut commands: Commands,
-    mut q: Query<&mut Window, With<PrimaryWindow>>,
-    asset_server: Res<AssetServer>,
-    display_settings: Res<DisplaySettings>,
-) {
+fn load_custom_font(mut commands: Commands, asset_server: Res<AssetServer>) {
     let new_default_font = asset_server.load("monogram.ttf");
     commands.insert_resource(DefaultFontHandle(new_default_font));
+}
+fn boot_camera(
+    mut commands: Commands,
+    mut q: Query<&mut Window, With<PrimaryWindow>>,
+    display_settings: Res<DisplaySettings>,
+) {
+    
 
     let mut camera = Camera2dBundle::default();
     camera.projection.scaling_mode = ScalingMode::AutoMin {
@@ -184,7 +200,7 @@ fn setup(
     win.resizable = !display_settings.fullscreen
 }
 
-fn set_default_font(
+fn override_default_font(
     mut commands: Commands,
     mut fonts: ResMut<Assets<Font>>,
     font_handle: Res<DefaultFontHandle>,
