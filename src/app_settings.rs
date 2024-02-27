@@ -3,6 +3,7 @@ use bevy::window::WindowMode;
 use bevy::{prelude::*, window::PrimaryWindow, winit::WinitWindows};
 use bevy_persistent::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 use crate::InitializationPhase;
 
@@ -121,7 +122,7 @@ impl Default for DisplaySettings {
     fn default() -> Self {
         Self {
             resolution: (1280., 720.),
-            fullscreen: true,
+            fullscreen: false,
         }
     }
 }
@@ -264,7 +265,7 @@ fn populate_display_settings_changes(
                 .set_scale_factor_override(Some(necessary_scale_factor));
         }
         if !display_settings.fullscreen {
-            window.resolution.set_scale_factor_override(Some(1.0));
+            window.resolution.set_scale_factor_override(None);
         }
     }
 
@@ -281,7 +282,9 @@ fn populate_display_settings_changes(
 }
 
 fn initialize_persistent_app_settings(mut commands: Commands) {
-    let cfg_dir = dirs::config_dir().unwrap().join("moar_ants");
+    let cfg_dir = dirs::config_dir()
+    .map(|dir| dir.join("moar_ants"))
+    .unwrap_or(Path::new("local").join("configuration"));
     commands.insert_resource(
         Persistent::<UserSettings>::builder()
             .name("user settings")

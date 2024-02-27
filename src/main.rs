@@ -15,6 +15,7 @@ use std::time::Duration;
 
 use ant::AntPlugin;
 use app_settings::{AppSettingsPlugin, DisplaySettings, SoundType, VolumeSettings};
+use bevy::asset::{load_internal_binary_asset, AssetMetaCheck};
 use bevy::audio::VolumeLevel;
 use bevy::window::WindowMode;
 use bevy::{
@@ -36,7 +37,8 @@ use playerinput::PlayerInputPlugin;
 use ui::{CreditsPlugin, GamefieldUI, MainMenuUI, SettingsMenuPlugin, UpgradePlugin};
 
 fn main() {
-    App::new()
+    let mut app = App::new();
+        app.insert_resource(AssetMetaCheck::Never)
         .add_plugins(
             DefaultPlugins
                 .set(WindowPlugin {
@@ -89,33 +91,42 @@ fn main() {
             FoodPlugin,
             GamefieldUI,
         ))
-        .configure_sets(Startup, 
+        .configure_sets(
+            Startup,
             (
-                (InitializationPhase::LoadFont, InitializationPhase::LoadConfigurations),
-                (InitializationPhase::InitializeDisplay,InitializationPhase::InitializeAudio)
-        ).chain()
+                (
+                    InitializationPhase::LoadConfigurations,
+                ),
+                (
+                    InitializationPhase::InitializeDisplay,
+                    InitializationPhase::InitializeAudio,
+                ),
+            )
+                .chain(),
         )
         .add_systems(
             Startup,
             (
-                load_custom_font.in_set(InitializationPhase::LoadFont),
                 boot_camera.in_set(InitializationPhase::InitializeDisplay),
                 play_music.in_set(InitializationPhase::InitializeAudio),
-
-           )
+            )
                 .chain(),
-        )
-        .add_systems(
-            First,
-            override_default_font.run_if(resource_exists::<DefaultFontHandle>()),
         )
         .add_systems(
             OnEnter(UIFocus::Gamefield),
             (start_game, flag_game_as_started.run_if(run_once())).chain(),
         )
         .add_systems(OnExit(UIFocus::Gamefield), pause_game)
-        .add_systems(Update, (soundscape_processor,))
-        .run();
+        .add_systems(Update, (soundscape_processor,));
+    load_internal_binary_asset!(
+        app,
+        TextStyle::default().font,
+        "../assets/monogram.ttf",
+        |bytes: &[u8], _path: String| { Font::try_from_bytes(bytes.to_vec()).unwrap() }
+    );
+
+
+        app.run();
 }
 
 #[derive(Resource, Default)]
@@ -129,10 +140,9 @@ pub struct AntSpatialMarker;
 
 #[derive(SystemSet, Hash, Debug, PartialEq, Eq, Clone)]
 pub enum InitializationPhase {
-    LoadFont,
     LoadConfigurations,
     InitializeDisplay,
-    InitializeAudio
+    InitializeAudio,
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
@@ -169,17 +179,11 @@ struct DefaultFontHandle(Handle<Font>);
 #[derive(Component)]
 pub struct MainMusicTrack;
 
-fn load_custom_font(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let new_default_font = asset_server.load("monogram.ttf");
-    commands.insert_resource(DefaultFontHandle(new_default_font));
-}
 fn boot_camera(
     mut commands: Commands,
     mut q: Query<&mut Window, With<PrimaryWindow>>,
     display_settings: Res<DisplaySettings>,
 ) {
-    
-
     let mut camera = Camera2dBundle::default();
     camera.projection.scaling_mode = ScalingMode::AutoMin {
         min_width: 800.0,
@@ -200,16 +204,6 @@ fn boot_camera(
     win.resizable = !display_settings.fullscreen
 }
 
-fn override_default_font(
-    mut commands: Commands,
-    mut fonts: ResMut<Assets<Font>>,
-    font_handle: Res<DefaultFontHandle>,
-) {
-    if let Some(font) = fonts.remove(&font_handle.0) {
-        fonts.insert(TextStyle::default().font, font);
-        commands.remove_resource::<DefaultFontHandle>();
-    }
-}
 
 fn start_game(mut sim_state: ResMut<NextState<SimState>>, current_sim_state: Res<State<SimState>>) {
     if matches!(current_sim_state.get(), SimState::MenuOpenedWhilePaused) {

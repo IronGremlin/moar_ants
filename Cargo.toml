@@ -23,10 +23,8 @@ lto = true
 strip = true
 
 
-
-
 [dependencies]
-bevy = { version = "0.12.1", features = ["trace", "wav","mp3"]}
+bevy = { version = "0.12.1", features = ["wav", "mp3"] }
 bevy-inspector-egui = "0.22.0"
 kd-tree = "0.5.1"
 bevy_spatial = "0.7.0"
@@ -36,7 +34,7 @@ bevy_rand = "0.4"
 rand = "0.8.5"
 bevy_prng = { version = "0.2", features = ["rand_chacha", "wyrand"] }
 bevy_nine_slice_ui = "0.5.0"
-bevy-persistent = {version = "0.4.3", features = ["json"]}
+bevy-persistent = { version = "0.4.3", features = ["json"] }
 serde = { version = "1.0" }
 serde_json = { version = "1.0", optional = true }
 dirs = { version = "5.0" }
