@@ -89,6 +89,7 @@ jobs:
           mkdir dist
           wasm-bindgen --no-typescript --out-name moar_ants --out-dir dist --target web target/wasm32-unknown-unknown/release/moar_ants.wasm
           cp -r assets dist/
+          cp index.html dist/index.html
           ./butler push dist irongremlin/moar-ants:wasm_demo --userversion "$VERSION"
       
 
