@@ -11,6 +11,10 @@ use crate::{
 };
 
 const CAMERA_PAN_SPEED_FACTOR: f32 = 10.0;
+#[cfg(not(target_arch = "wasm32"))]
+const CAMERA_ZOOM_RATE: f32 = 0.05;
+#[cfg(target_arch = "wasm32")]
+const CAMERA_ZOOM_RATE: f32 = 0.005;
 pub struct PlayerInputPlugin;
 
 impl Plugin for PlayerInputPlugin {
@@ -98,14 +102,14 @@ fn game_field_setup(
 fn zoom_camera(
     mut query: Query<(&mut OrthographicProjection, &ActionState<CameraControl>), With<MainCamera>>,
 ) {
-    const CAMERA_ZOOM_RATE: f32 = 0.05;
+    
 
     let (mut camera_projection, action_state) = query.single_mut();
 
     let zoom_delta = action_state.value(CameraControl::Zoom);
 
     camera_projection.scale =
-        (camera_projection.scale * 1. - zoom_delta * CAMERA_ZOOM_RATE).clamp(0.0, 20.0);
+        (camera_projection.scale * 1. - zoom_delta * CAMERA_ZOOM_RATE).clamp(0.1, 20.);
 }
 
 fn pan_camera(

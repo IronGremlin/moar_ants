@@ -52,5 +52,38 @@ jobs:
           cp -r assets dist/
           cp target/dist/moar_ants.exe dist/
           ./butler/butler.exe push dist irongremlin/moar-ants:win --userversion "$env:VERSION"
+
+  release-wasm:
+    runs-on: ubuntu-latest
+    needs: get-version
+    env:
+      VERSION: ${{needs.get-version.outputs.version}}
+      BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+
+    steps:
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Install wasm-bindgen-cli
+        run: |
+          cargo install wasm-bindgen-cli
+      - name: Download Butler
+        run: |
+          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+          unzip butler.zip
+          chmod +x butler
+          ./butler -V
+
+      - name: Build Release
+        run: |
+          cargo build --release --target wasm32-unknown-unknown
+
+      - name: Prepare and Deploy Release
+        run: |
+          mkdir dist
+          wasm-bindgen --no-typescript --out-name moar_ants --out-dir dist --target web target/wasm32-unknown-unknown/release/moar_ants.wasm
+          cp -r assets dist/
+          ./butler push dist irongremlin/moar-ants:wasm_demo --userversion "$VERSION"
       
 

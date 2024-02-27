@@ -36,6 +36,8 @@ impl Plugin for UpgradePlugin {
                 AntCarryCapacity::progress_bar_display_effect,
                 AntCarryCapacity::set_upgrade_button_able,
                 AntCarryCapacity::set_maxed.run_if(AntCarryCapacity::is_maxed.and_then(run_once())),
+                #[cfg(target_arch = "wasm32")]
+                AntMaxPop::set_maxed.run_if(AntMaxPop::is_maxed.and_then(run_once())),
             ),
         );
     }
@@ -560,6 +562,13 @@ impl ColonyUpgrade for ColonyMaxFood {
 
 #[derive(Component, Default)]
 pub struct AntMaxPop;
+#[cfg(target_arch = "wasm32")]
+impl Maxable for AntMaxPop {
+    fn max_index() -> i32 {
+        11
+    }
+}
+
 impl AntMaxPop {
     fn val(idx: i32) -> i32 {
         match idx {
@@ -570,6 +579,27 @@ impl AntMaxPop {
             _ => 100,
         }
     }
+    #[cfg(target_arch = "wasm32")]
+    fn display_effect(current: i32, idx: i32) -> (String, String, bool) {
+        if idx < Self::max_index() {
+            (
+                format!("{:?}", current),
+                format!("(+{:?})", Self::val(idx)),
+                false,
+            )
+        } else {
+            (format!("{:?}", current), "MAX".into(), true)
+        }
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    fn display_effect(current: i32, idx: i32) -> (String, String, bool) {
+        (
+            format!("{:?}", current),
+            format!("(+{:?})", Self::val(idx)),
+            false,
+        )
+    }
+
     fn progress_bar_display_effect(
         q: Query<(&UpgradeStringIndex, &AntCapacity), With<Colony>>,
         mut text_q: Query<&mut Text, With<ColonyUpgradeEffect<Self>>>,
@@ -577,8 +607,14 @@ impl AntMaxPop {
         let (upgrades, ant_cap) = q.single();
         if let Some(feature_index) = upgrades.costs.get(&Self::name()) {
             for mut text in text_q.iter_mut() {
-                text.sections[0].value = format!("{:?}", ant_cap.0);
-                text.sections[2].value = format!("(+{:?})", Self::val(*feature_index));
+                let (current, adjustment, maxed) = Self::display_effect(ant_cap.0, *feature_index);
+                if maxed {
+                    text.sections[0].style = TextStyle::local(SMALL, Color::BLACK);
+                    text.sections[1].style = TextStyle::local(SMALL, Color::BLACK);
+                    text.sections[2].style = TextStyle::local(SMALL, Color::BLACK);
+                }
+                text.sections[0].value = current;
+                text.sections[2].value = adjustment;
             }
         }
     }

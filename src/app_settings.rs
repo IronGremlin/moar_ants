@@ -84,6 +84,22 @@ impl UserSettings {
         }
     }
 }
+
+#[cfg(target_arch = "wasm32")]
+impl Default for UserSettings {
+    fn default() -> Self {
+        Self::V1 {
+            global_volume: 0.5,
+            sfx_volume: 0.5,
+            music_volume: 0.5,
+            resolution: (1280., 720.),
+            fullscreen: false,
+            display_first_time_help: true,
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 impl Default for UserSettings {
     fn default() -> Self {
         Self::V1 {
@@ -118,6 +134,17 @@ pub struct DisplaySettings {
     pub resolution: (f32, f32),
     pub fullscreen: bool,
 }
+#[cfg(not(target_arch = "wasm32"))]
+impl Default for DisplaySettings {
+    fn default() -> Self {
+        Self {
+            resolution: (1280., 720.),
+            fullscreen: true,
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
 impl Default for DisplaySettings {
     fn default() -> Self {
         Self {

@@ -157,14 +157,13 @@ fn display_main_menu(
         },
         "Credits",
     );
-    let quit_button = main_menu_button(
+    let quit_button = quit_button(
         &mut commands,
         button_texture.clone(),
         ActionStateDriver {
             action: MainMenuUIActions::ExitGame,
             targets: root_node.into(),
         },
-        "Quit",
     );
 
     commands.entity(anchor.0).add_child(root_node);
@@ -249,6 +248,16 @@ fn main_menu_button(
         .id();
     commands.entity(button).add_child(button_label);
     button
+}
+#[cfg(not(target_arch = "wasm32"))]
+fn quit_button(commands: &mut Commands, image: Handle<Image>, action_driver: ActionStateDriver<MainMenuUIActions>) -> Entity {
+   main_menu_button(commands, image, action_driver, "Quit")
+   
+}
+//TODO - there certainly exists a better solution to this problem
+#[cfg(target_arch = "wasm32")]
+fn quit_button(commands: &mut Commands, image: Handle<Image>, action_driver: ActionStateDriver<MainMenuUIActions>) -> Entity {
+   commands.spawn(NodeBundle::default()).id()
 }
 
 fn main_menu_teardown(
