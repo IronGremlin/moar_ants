@@ -61,10 +61,15 @@ jobs:
       BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
 
     steps:
-
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@master
         with:
-          targets: wasm32-unknown-unknown
+          toolchain: stable
+      - name: Add wasm target
+        run: |
+          rustup target add wasm32-unknown-unknown
       - name: Install wasm-bindgen-cli
         run: |
           cargo install wasm-bindgen-cli
