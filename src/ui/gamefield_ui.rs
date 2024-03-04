@@ -46,19 +46,71 @@ impl Plugin for GamefieldUI {
 
 #[derive(Component)]
 pub struct GamefieldUIRoot;
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct GamefieldUIFoodLabel;
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct GamefieldUIAntPopLabel;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 struct GamefieldUIFoodBar;
-#[derive(Component)]
+#[derive(Component, Default)]
 struct GamefieldUIAntBar;
 
 #[derive(Component, Default)]
 struct AntCount<T: Component + Default> {
     marker: PhantomData<T>,
+}
+trait LaborTableDisplay {
+    fn icon() -> String;
+    fn left_edge_image() -> String;
+    fn color() -> Color;
+    fn name() -> String;
+}
+
+impl LaborTableDisplay for ForagerAnt {
+    fn icon() -> String {
+        "food_icon.png".into()
+    }
+    fn left_edge_image() -> String {
+        "nine_slice/bgW_bB_soft_corner_upper_left_trimmed_inner.png".into()
+    }
+    fn color() -> Color {
+        Color::rgb_u8(106, 190, 48)
+    }
+
+    fn name() -> String {
+        "Foragers:".into()
+    }
+}
+impl LaborTableDisplay for NursemaidAnt {
+    fn icon() -> String {
+        "egg_icon.png".into()
+    }
+    fn left_edge_image() -> String {
+        "nine_slice/bgW_bB_soft_corner_middle_left_trimmed_inner.png".into()
+    }
+    fn color() -> Color {
+        Color::rgb_u8(69, 40, 60)
+    }
+
+    fn name() -> String {
+        "NurseMaids:".into()
+    }
+}
+impl LaborTableDisplay for IdleAnt {
+    fn icon() -> String {
+        "zs_icon.png".into()
+    }
+    fn left_edge_image() -> String {
+        "nine_slice/bgW_bB_soft_corner_lower_left_trimmed_inner.png".into()
+    }
+    fn color() -> Color {
+        Color::rgb_u8(172, 50, 50)
+    }
+
+    fn name() -> String {
+        "Idlers:".into()
+    }
 }
 
 #[derive(Component)]
@@ -122,206 +174,10 @@ fn init_gamefield_ui(
             ..default()
         })
         .id();
-    let food_bar_layout = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                width: px(593.),
-                height: px(32.),
-                margin: UiRect {
-                    left: px(5.),
-                    right: px(13.),
-                    top: px(13.),
-                    bottom: px(5.),
-                },
-
-                flex_direction: FlexDirection::Row,
-                ..default()
-            },
-            z_index: ZIndex::Local(5),
-
-            ..default()
-        })
-        .id();
-    let food_icon = commands
-        .spawn(ImageBundle {
-            image: UiImage {
-                texture: asset_server.load("food_icon.png"),
-
-                ..default()
-            },
-            style: Style {
-                width: px(32.),
-                aspect_ratio: Some(1.0),
-                margin: UiRect {
-                    top: px(1.),
-                    bottom: px(1.),
-                    left: px(1.),
-                    right: px(6.),
-                },
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let food_bar_mask = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                left: px(39.), // image size + image margin + 1px leeway
-                width: ALL,
-                height: ALL,
-                align_self: AlignSelf::Start,
-                position_type: PositionType::Absolute,
-                ..default()
-            },
-            z_index: ZIndex::Local(15),
-            nine_slice_texture: NineSliceUiTexture::from_image(
-                asset_server.load("nine_slice/bgT_bB_rounded_hard.png"),
-            ),
-
-            ..default()
-        })
-        .id();
-    let food_bar_fill = commands
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    left: px(39.),
-                    width: ALL,
-                    height: ALL,
-                    align_self: AlignSelf::Start,
-                    position_type: PositionType::Absolute,
-                    ..default()
-                },
-                background_color: Color::rgb_u8(106, 190, 48).into(),
-                z_index: ZIndex::Local(10),
-                ..default()
-            },
-            GamefieldUIFoodBar,
-        ))
-        .id();
-    let food_bar_label = commands
-        .make_text_sections(vec![
-            ("0", TextStyle::local(LARGE, Color::BLACK)),
-            ("\n", TextStyle::local(LARGE, Color::BLACK)),
-            ("", TextStyle::local(LARGE, Color::BLACK)),
-        ])
-        .insert(GamefieldUIFoodBar)
-        .id();
-
-    let food_bar_label_layout = commands
-        .spawn(NodeBundle {
-            style: Style {
-                width: ALL,
-                height: ALL,
-                position_type: PositionType::Absolute,
-                align_content: AlignContent::Center,
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
-            z_index: ZIndex::Local(20),
-            ..default()
-        })
-        .id();
-
-    let ant_bar_layout = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                width: px(593.),
-                height: px(32.),
-                margin: UiRect {
-                    left: px(5.),
-                    right: px(13.),
-                    top: px(13.),
-                    bottom: px(5.),
-                },
-
-                flex_direction: FlexDirection::Row,
-                ..default()
-            },
-            z_index: ZIndex::Local(5),
-
-            ..default()
-        })
-        .id();
-    let ant_icon = commands
-        .spawn(ImageBundle {
-            image: UiImage {
-                texture: asset_server.load("ant_icon.png"),
-                ..default()
-            },
-            style: Style {
-                width: px(32.),
-                aspect_ratio: Some(1.0),
-                margin: UiRect {
-                    top: px(1.),
-                    bottom: px(1.),
-                    left: px(1.),
-                    right: px(6.),
-                },
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let ant_bar_mask = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                left: px(39.), // image size + image margin + 1px leeway
-                width: ALL,
-                height: ALL,
-                align_self: AlignSelf::Start,
-                position_type: PositionType::Absolute,
-                ..default()
-            },
-            z_index: ZIndex::Local(15),
-            nine_slice_texture: NineSliceUiTexture::from_image(
-                asset_server.load("nine_slice/bgT_bB_rounded_hard.png"),
-            ),
-
-            ..default()
-        })
-        .id();
-    let ant_bar_fill = commands
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    left: px(39.),
-                    width: ALL,
-                    height: ALL,
-                    align_self: AlignSelf::Start,
-                    position_type: PositionType::Absolute,
-                    ..default()
-                },
-                background_color: Color::rgb_u8(99, 155, 255).into(),
-                z_index: ZIndex::Local(10),
-                ..default()
-            },
-            GamefieldUIAntBar,
-        ))
-        .id();
-    let ant_bar_label = commands
-        .make_text_sections(vec![
-            ("0", TextStyle::local(LARGE, Color::BLACK)),
-            ("\n", TextStyle::local(LARGE, Color::BLACK)),
-            ("", TextStyle::local(LARGE, Color::BLACK)),
-        ])
-        .insert(GamefieldUIAntBar)
-        .id();
-
-    let ant_bar_label_layout = commands
-        .spawn(NodeBundle {
-            style: Style {
-                width: ALL,
-                height: ALL,
-                position_type: PositionType::Absolute,
-                align_content: AlignContent::Center,
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
-            z_index: ZIndex::Local(20),
-            ..default()
-        })
-        .id();
+    let food_bar_layout =
+        make_big_bar::<GamefieldUIFoodBar>(&mut commands, &asset_server, Color::rgb_u8(106, 190, 48), "food_icon.png".into());
+    let ant_bar_layout =
+        make_big_bar::<GamefieldUIAntBar>(&mut commands, &asset_server, Color::rgb_u8(99, 155, 255),"ant_icon.png".into());
 
     let egg_button_layout = commands
         .spawn(NodeBundle {
@@ -609,401 +465,9 @@ fn init_gamefield_ui(
             ..default()
         })
         .id();
-    let forager_row = commands
-        .spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(100.),
-                height: Val::Percent(33.3),
-                flex_direction: FlexDirection::Row,
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let forager_label_layout = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                width: Val::Percent(30.),
-                height: Val::Percent(100.),
-                margin: UiRect::right(Val::Px(-1.0)),
-                justify_content: JustifyContent::FlexEnd,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            nine_slice_texture: NineSliceUiTexture::from_image(
-                asset_server.load("nine_slice/bgW_bB_soft_corner_upper_left_trimmed_inner.png"),
-            ),
-            ..default()
-        })
-        .id();
-    let forager_label = commands
-        .make_text("Foragers:", TextStyle::local(MEDIUM, Color::BLACK))
-        .insert(Style {
-            margin: UiRect::right(Val::Px(5.0)),
-            ..default()
-        })
-        .id();
-    let forager_icon_layout = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                width: Val::Percent(16.),
-                height: Val::Percent(100.),
-                ..default()
-            },
-            nine_slice_texture: NineSliceUiTexture::from_image(
-                asset_server.load("nine_slice/bgW_bB_square_trimmed_inner.png"),
-            ),
-            ..default()
-        })
-        .id();
-    let forager_icon = commands
-        .spawn(ImageBundle {
-            image: UiImage {
-                texture: asset_server.load("food_icon.png"),
-
-                ..default()
-            },
-            style: Style {
-                margin: UiRect {
-                    left: Val::Percent(10.),
-                    right: Val::Percent(10.),
-                    top: Val::Percent(2.),
-                    bottom: Val::Percent(2.),
-                },
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let forager_bar_layout = commands
-        .spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(54.),
-                height: Val::Percent(100.),
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let forager_bar_mask = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                width: Val::Percent(100.),
-                height: Val::Percent(100.),
-                align_self: AlignSelf::Start,
-                position_type: PositionType::Absolute,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            z_index: ZIndex::Local(15),
-            nine_slice_texture: NineSliceUiTexture::from_image(
-                asset_server.load("nine_slice/bgT_bB_right_rounded_soft.png"),
-            ),
-
-            ..default()
-        })
-        .id();
-    let forager_bar_fill = commands
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.),
-                    height: Val::Percent(100.),
-                    align_self: AlignSelf::Start,
-                    position_type: PositionType::Relative,
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                background_color: Color::rgb_u8(106, 190, 48).into(),
-                z_index: ZIndex::Local(10),
-                ..default()
-            },
-            AntCount::<ForagerAnt>::default(),
-        ))
-        .id();
-    let forager_bar_label = commands
-        .make_text_sections(vec![
-            ("0", TextStyle::local(MEDIUM, Color::BLACK)),
-            ("\n", TextStyle::local(MEDIUM, Color::BLACK)),
-            ("", TextStyle::local(MEDIUM, Color::BLACK)),
-        ])
-        .insert((
-            Style {
-                align_self: AlignSelf::Center,
-                justify_self: JustifySelf::Center,
-                position_type: PositionType::Absolute,
-                ..default()
-            },
-            ZIndex::Local(15),
-            AntCount::<ForagerAnt>::default(),
-        ))
-        .id();
-
-    //
-    let nursemaid_row = commands
-        .spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(100.),
-                height: Val::Percent(33.3),
-                flex_direction: FlexDirection::Row,
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let nursemaid_label_layout = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                width: Val::Percent(30.),
-                height: Val::Percent(100.),
-                margin: UiRect::right(Val::Px(-1.0)),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::FlexEnd,
-                ..default()
-            },
-            nine_slice_texture: NineSliceUiTexture::from_image(
-                asset_server.load("nine_slice/bgW_bB_soft_corner_middle_left_trimmed_inner.png"),
-            ),
-            ..default()
-        })
-        .id();
-    let nursemaid_label = commands
-        .make_text("NurseMaids:", TextStyle::local(MEDIUM, Color::BLACK))
-        .insert(Style {
-            margin: UiRect::right(Val::Px(5.)),
-            ..default()
-        })
-        .id();
-    let nursemaid_icon_layout = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                width: Val::Percent(16.),
-                height: Val::Percent(100.),
-                ..default()
-            },
-            nine_slice_texture: NineSliceUiTexture::from_image(
-                asset_server.load("nine_slice/bgW_bB_square_trimmed_inner.png"),
-            ),
-            ..default()
-        })
-        .id();
-    let nursemaid_icon = commands
-        .spawn(ImageBundle {
-            image: UiImage {
-                texture: asset_server.load("egg_icon.png"),
-
-                ..default()
-            },
-            style: Style {
-                margin: UiRect {
-                    left: Val::Percent(10.),
-                    right: Val::Percent(5.),
-                    top: Val::Percent(6.),
-                    bottom: Val::Percent(6.),
-                },
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let nursemaid_bar_layout = commands
-        .spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(54.),
-                height: Val::Percent(100.),
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let nursemaid_bar_mask = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                width: Val::Percent(100.),
-                height: Val::Percent(100.),
-                align_self: AlignSelf::Start,
-                position_type: PositionType::Absolute,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            z_index: ZIndex::Local(15),
-            nine_slice_texture: NineSliceUiTexture::from_image(
-                asset_server.load("nine_slice/bgT_bB_right_rounded_soft.png"),
-            ),
-
-            ..default()
-        })
-        .id();
-    let nursemaid_bar_fill = commands
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.),
-                    height: Val::Percent(100.),
-                    align_self: AlignSelf::Start,
-                    position_type: PositionType::Relative,
-                    ..default()
-                },
-                background_color: Color::rgb_u8(69, 40, 60).into(),
-                z_index: ZIndex::Local(10),
-                ..default()
-            },
-            AntCount::<NursemaidAnt>::default(),
-        ))
-        .id();
-    let nursemaid_bar_label = commands
-        .make_text_sections(vec![
-            ("0", TextStyle::local(MEDIUM, Color::BLACK)),
-            ("\n", TextStyle::local(MEDIUM, Color::BLACK)),
-            ("", TextStyle::local(MEDIUM, Color::BLACK)),
-        ])
-        .insert((
-            Style {
-                align_self: AlignSelf::Center,
-                justify_self: JustifySelf::Center,
-                position_type: PositionType::Absolute,
-                ..default()
-            },
-            ZIndex::Local(15),
-            AntCount::<NursemaidAnt>::default(),
-        ))
-        .id();
-    //
-    let idler_row = commands
-        .spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(100.),
-                height: Val::Percent(33.3),
-                flex_direction: FlexDirection::Row,
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let idler_label_layout = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                width: Val::Percent(30.),
-                height: Val::Percent(100.),
-                margin: UiRect::right(Val::Px(-1.0)),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::FlexEnd,
-                ..default()
-            },
-            nine_slice_texture: NineSliceUiTexture::from_image(
-                asset_server.load("nine_slice/bgW_bB_soft_corner_lower_left_trimmed_inner.png"),
-            ),
-            ..default()
-        })
-        .id();
-    let idler_label = commands
-        .make_text("Idlers:", TextStyle::local(MEDIUM, Color::BLACK))
-        .insert(Style {
-            margin: UiRect::right(Val::Px(5.0)),
-            ..default()
-        })
-        .id();
-
-    let idler_icon_layout = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                width: Val::Percent(16.),
-                height: Val::Percent(100.),
-                ..default()
-            },
-            nine_slice_texture: NineSliceUiTexture::from_image(
-                asset_server.load("nine_slice/bgW_bB_square_trimmed_inner.png"),
-            ),
-            ..default()
-        })
-        .id();
-    let idler_icon = commands
-        .spawn(ImageBundle {
-            image: UiImage {
-                texture: asset_server.load("zs_icon.png"),
-
-                ..default()
-            },
-            style: Style {
-                margin: UiRect {
-                    left: Val::Percent(10.),
-                    right: Val::Percent(10.),
-                    top: Val::Percent(2.),
-                    bottom: Val::Percent(2.),
-                },
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let idler_bar_layout = commands
-        .spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(54.),
-                height: Val::Percent(100.),
-                ..default()
-            },
-            ..default()
-        })
-        .id();
-    let idler_bar_mask = commands
-        .spawn(NineSliceUiMaterialBundle {
-            style: Style {
-                width: Val::Percent(100.),
-                height: Val::Percent(100.),
-                align_self: AlignSelf::Start,
-                position_type: PositionType::Absolute,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            z_index: ZIndex::Local(15),
-            nine_slice_texture: NineSliceUiTexture::from_image(
-                asset_server.load("nine_slice/bgT_bB_right_rounded_soft.png"),
-            ),
-
-            ..default()
-        })
-        .id();
-    let idler_bar_fill = commands
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.),
-                    height: Val::Percent(100.),
-                    align_self: AlignSelf::Start,
-                    position_type: PositionType::Relative,
-                    ..default()
-                },
-                background_color: Color::rgb_u8(172, 50, 50).into(),
-                z_index: ZIndex::Local(10),
-                ..default()
-            },
-            AntCount::<IdleAnt>::default(),
-        ))
-        .id();
-    let idler_bar_label = commands
-        .make_text_sections(vec![
-            ("0", TextStyle::local(MEDIUM, Color::BLACK)),
-            ("\n", TextStyle::local(MEDIUM, Color::BLACK)),
-            ("", TextStyle::local(MEDIUM, Color::BLACK)),
-        ])
-        .insert((
-            Style {
-                align_self: AlignSelf::Center,
-                justify_self: JustifySelf::Center,
-                position_type: PositionType::Absolute,
-                ..default()
-            },
-            ZIndex::Local(15),
-            AntCount::<IdleAnt>::default(),
-        ))
-        .id();
-
-    //
+    let forager_row = make_ant_labor_row::<ForagerAnt>(&mut commands, &asset_server);
+    let nursemaid_row = make_ant_labor_row::<NursemaidAnt>(&mut commands, &asset_server);
+    let idler_row = make_ant_labor_row::<IdleAnt>(&mut commands, &asset_server);
 
     let upgrade_menu_layout = commands
         .spawn(NineSliceUiMaterialBundle {
@@ -1027,9 +491,7 @@ fn init_gamefield_ui(
         .id();
 
     let upgrade_buttons = spawn_upgrade_buttons(&mut commands, &asset_server);
-    //resource_label_layout,
     let menu_children = [
-        //[resource_label_layout].as_slice(),
         upgrade_buttons.as_slice(),
     ]
     .concat();
@@ -1038,24 +500,6 @@ fn init_gamefield_ui(
     commands
         .entity(big_bar_layout)
         .push_children(&[food_bar_layout, ant_bar_layout]);
-    commands.entity(food_bar_layout).push_children(&[
-        food_icon,
-        food_bar_label_layout,
-        food_bar_mask,
-        food_bar_fill,
-    ]);
-    commands
-        .entity(food_bar_label_layout)
-        .add_child(food_bar_label);
-    commands.entity(ant_bar_layout).push_children(&[
-        ant_icon,
-        ant_bar_label_layout,
-        ant_bar_mask,
-        ant_bar_fill,
-    ]);
-    commands
-        .entity(ant_bar_label_layout)
-        .add_child(ant_bar_label);
 
     commands.entity(root).add_child(egg_button_layout);
     commands
@@ -1076,60 +520,277 @@ fn init_gamefield_ui(
     commands
         .entity(ant_labor_table)
         .push_children(&[forager_row, nursemaid_row, idler_row]);
-    commands.entity(forager_row).push_children(&[
-        forager_label_layout,
-        forager_icon_layout,
-        forager_bar_layout,
-    ]);
-    commands
-        .entity(forager_label_layout)
-        .add_child(forager_label);
-    commands.entity(forager_icon_layout).add_child(forager_icon);
-    commands
-        .entity(forager_bar_layout)
-        .push_children(&[forager_bar_mask, forager_bar_fill]);
-    commands
-        .entity(forager_bar_mask)
-        .add_child(forager_bar_label);
-    //
-    commands.entity(nursemaid_row).push_children(&[
-        nursemaid_label_layout,
-        nursemaid_icon_layout,
-        nursemaid_bar_layout,
-    ]);
-    commands
-        .entity(nursemaid_label_layout)
-        .add_child(nursemaid_label);
-    commands
-        .entity(nursemaid_icon_layout)
-        .push_children(&[nursemaid_icon]);
-    commands
-        .entity(nursemaid_bar_layout)
-        .push_children(&[nursemaid_bar_mask, nursemaid_bar_fill]);
-    commands
-        .entity(nursemaid_bar_mask)
-        .add_child(nursemaid_bar_label);
-    //
-    commands.entity(idler_row).push_children(&[
-        idler_label_layout,
-        idler_icon_layout,
-        idler_bar_layout,
-    ]);
-    commands.entity(idler_label_layout).add_child(idler_label);
-    commands
-        .entity(idler_icon_layout)
-        .push_children(&[idler_icon]);
-    commands
-        .entity(idler_bar_layout)
-        .push_children(&[idler_bar_mask, idler_bar_fill]);
-    commands.entity(idler_bar_mask).add_child(idler_bar_label);
-
-    //
 
     commands.entity(root).add_child(upgrade_menu_layout);
     commands
         .entity(upgrade_menu_layout)
         .push_children(menu_children.as_slice());
+}
+
+fn make_big_bar<C: Component + Default>(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    color: Color,
+    icon_path: String,
+) -> Entity {
+    let big_bar_layout = commands
+        .spawn(NineSliceUiMaterialBundle {
+            style: Style {
+                width: px(593.),
+                height: px(32.),
+                margin: UiRect {
+                    left: px(5.),
+                    right: px(13.),
+                    top: px(13.),
+                    bottom: px(5.),
+                },
+
+                flex_direction: FlexDirection::Row,
+                ..default()
+            },
+            z_index: ZIndex::Local(5),
+
+            ..default()
+        })
+        .id();
+    let icon = commands
+        .spawn(ImageBundle {
+            image: UiImage {
+                texture: asset_server.load(icon_path),
+
+                ..default()
+            },
+            style: Style {
+                width: px(32.),
+                aspect_ratio: Some(1.0),
+                margin: UiRect {
+                    top: px(1.),
+                    bottom: px(1.),
+                    left: px(1.),
+                    right: px(6.),
+                },
+                ..default()
+            },
+            ..default()
+        })
+        .id();
+    let bar_mask = commands
+        .spawn(NineSliceUiMaterialBundle {
+            style: Style {
+                left: px(39.), // image size + image margin + 1px leeway
+                width: ALL,
+                height: ALL,
+                align_self: AlignSelf::Start,
+                position_type: PositionType::Absolute,
+                ..default()
+            },
+            z_index: ZIndex::Local(15),
+            nine_slice_texture: NineSliceUiTexture::from_image(
+                asset_server.load("nine_slice/bgT_bB_rounded_hard.png"),
+            ),
+
+            ..default()
+        })
+        .id();
+    let bar_fill = commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    left: px(39.),
+                    width: ALL,
+                    height: ALL,
+                    align_self: AlignSelf::Start,
+                    position_type: PositionType::Absolute,
+                    ..default()
+                },
+                background_color: color.into(),
+                z_index: ZIndex::Local(10),
+                ..default()
+            },
+            C::default(),
+        ))
+        .id();
+    let bar_label = commands
+        .make_text_sections(vec![
+            ("0", TextStyle::local(LARGE, Color::BLACK)),
+            ("\n", TextStyle::local(LARGE, Color::BLACK)),
+            ("", TextStyle::local(LARGE, Color::BLACK)),
+        ])
+        .insert(C::default())
+        .id();
+
+    let bar_label_layout = commands
+        .spawn(NodeBundle {
+            style: Style {
+                width: ALL,
+                height: ALL,
+                position_type: PositionType::Absolute,
+                align_content: AlignContent::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            z_index: ZIndex::Local(20),
+            ..default()
+        })
+        .id();
+    commands
+        .entity(big_bar_layout)
+        .push_children(&[icon, bar_label_layout, bar_mask, bar_fill]);
+    commands.entity(bar_label_layout).add_child(bar_label);
+    big_bar_layout
+}
+
+fn make_ant_labor_row<C: Component + Default + LaborTableDisplay>(
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+) -> Entity {
+    let labor_row = commands
+        .spawn(NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(33.3),
+                flex_direction: FlexDirection::Row,
+                ..default()
+            },
+            ..default()
+        })
+        .id();
+    let labor_label_layout = commands
+        .spawn(NineSliceUiMaterialBundle {
+            style: Style {
+                width: Val::Percent(30.),
+                height: Val::Percent(100.),
+                margin: UiRect::right(Val::Px(-1.0)),
+                justify_content: JustifyContent::FlexEnd,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            nine_slice_texture: NineSliceUiTexture::from_image(
+                asset_server.load(C::left_edge_image()),
+            ),
+            ..default()
+        })
+        .id();
+    let labor_label = commands
+        .make_text(&C::name().clone(), TextStyle::local(MEDIUM, Color::BLACK))
+        .insert(Style {
+            margin: UiRect::right(Val::Px(5.0)),
+            ..default()
+        })
+        .id();
+    let labor_icon_layout = commands
+        .spawn(NineSliceUiMaterialBundle {
+            style: Style {
+                width: Val::Percent(16.),
+                height: Val::Percent(100.),
+                ..default()
+            },
+            nine_slice_texture: NineSliceUiTexture::from_image(
+                asset_server.load("nine_slice/bgW_bB_square_trimmed_inner.png"),
+            ),
+            ..default()
+        })
+        .id();
+    let labor_icon = commands
+        .spawn(ImageBundle {
+            image: UiImage {
+                texture: asset_server.load(C::icon()),
+
+                ..default()
+            },
+            style: Style {
+                margin: UiRect {
+                    left: Val::Percent(10.),
+                    right: Val::Percent(10.),
+                    top: Val::Percent(2.),
+                    bottom: Val::Percent(2.),
+                },
+                ..default()
+            },
+            ..default()
+        })
+        .id();
+    let labor_bar_layout = commands
+        .spawn(NodeBundle {
+            style: Style {
+                width: Val::Percent(54.),
+                height: Val::Percent(100.),
+                ..default()
+            },
+            ..default()
+        })
+        .id();
+    let labor_bar_mask = commands
+        .spawn(NineSliceUiMaterialBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                align_self: AlignSelf::Start,
+                position_type: PositionType::Absolute,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            z_index: ZIndex::Local(15),
+            nine_slice_texture: NineSliceUiTexture::from_image(
+                asset_server.load("nine_slice/bgT_bB_right_rounded_soft.png"),
+            ),
+
+            ..default()
+        })
+        .id();
+    let labor_bar_fill = commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.),
+                    height: Val::Percent(100.),
+                    align_self: AlignSelf::Start,
+                    position_type: PositionType::Relative,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                background_color: C::color().into(),
+                z_index: ZIndex::Local(10),
+                ..default()
+            },
+            AntCount::<C>::default(),
+        ))
+        .id();
+    let labor_bar_label = commands
+        .make_text_sections(vec![
+            ("0", TextStyle::local(MEDIUM, Color::BLACK)),
+            ("\n", TextStyle::local(MEDIUM, Color::BLACK)),
+            ("", TextStyle::local(MEDIUM, Color::BLACK)),
+        ])
+        .insert((
+            Style {
+                align_self: AlignSelf::Center,
+                justify_self: JustifySelf::Center,
+                position_type: PositionType::Absolute,
+                ..default()
+            },
+            ZIndex::Local(15),
+            AntCount::<C>::default(),
+        ))
+        .id();
+    commands.entity(labor_row).push_children(&[
+        labor_label_layout,
+        labor_icon_layout,
+        labor_bar_layout,
+    ]);
+    commands
+        .entity(labor_label_layout)
+        .add_child(labor_label);
+    commands.entity(labor_icon_layout).add_child(labor_icon);
+    commands
+        .entity(labor_bar_layout)
+        .push_children(&[labor_bar_mask, labor_bar_fill]);
+    commands
+        .entity(labor_bar_mask)
+        .add_child(labor_bar_label);
+    labor_row
 }
 
 fn food_text_update(
@@ -1193,17 +854,17 @@ fn larva_target_display(
 }
 
 fn increment_target_larva(
-    mut chill: Local<ChillOut>,
+    mut chill: Local<CoolDown>,
     time: Res<Time>,
     mut q_col: Query<&mut LarvaTarget, With<Colony>>,
     interaction: Query<&Interaction, (With<LarvaPlus>, Without<LarvaMinus>)>,
 ) {
-    chill.be_chill(time.delta());
-    if !chill.we_chillin() {
+    chill.handle_time(time.delta());
+    if !chill.cooling_down() {
         interaction.iter().take(1).for_each(|n| match *n {
             Interaction::Pressed => {
                 q_col.single_mut().0 += 1;
-                chill.be_chillin();
+                chill.start_cooldown();
             }
             _ => {}
         });
@@ -1211,47 +872,47 @@ fn increment_target_larva(
 }
 
 fn decrement_target_larva(
-    mut chill: Local<ChillOut>,
+    mut chill: Local<CoolDown>,
     time: Res<Time>,
     mut q_col: Query<&mut LarvaTarget, With<Colony>>,
     interaction: Query<&Interaction, (With<LarvaMinus>, Without<LarvaPlus>)>,
 ) {
-    chill.be_chill(time.delta());
-    if !chill.we_chillin() {
+    chill.handle_time(time.delta());
+    if !chill.cooling_down() {
         interaction.iter().take(1).for_each(|n| match *n {
             Interaction::Pressed => {
                 let mut larva_target = q_col.single_mut();
                 larva_target.0 = 1.max(larva_target.0 - 1);
-                chill.be_chillin();
+                chill.start_cooldown();
             }
             _ => {}
         });
     }
 }
 
-struct ChillOut {
-    chillin: bool,
+struct CoolDown {
+    cooling_down: bool,
     elapsed: Timer,
 }
-impl Default for ChillOut {
+impl Default for CoolDown {
     fn default() -> Self {
         Self {
-            chillin: false,
+            cooling_down: false,
             elapsed: Timer::from_seconds(0.25, TimerMode::Once),
         }
     }
 }
-impl ChillOut {
-    fn we_chillin(&self) -> bool {
-        self.chillin
+impl CoolDown {
+    fn cooling_down(&self) -> bool {
+        self.cooling_down
     }
 
-    fn be_chillin(&mut self) {
-        self.chillin = true;
+    fn start_cooldown(&mut self) {
+        self.cooling_down = true;
     }
 
-    fn be_chill(&mut self, delta: Duration) {
-        match (self.chillin, self.done()) {
+    fn handle_time(&mut self, delta: Duration) {
+        match (self.cooling_down, self.done()) {
             (false, _) => {
                 return;
             }
@@ -1270,7 +931,7 @@ impl ChillOut {
         self.elapsed.tick(delta);
     }
     fn clear(&mut self) {
-        self.chillin = false;
+        self.cooling_down = false;
         self.elapsed.reset();
     }
 }
