@@ -1,4 +1,4 @@
-use bevy::{input::mouse, prelude::*, window::PrimaryWindow};
+use bevy::{prelude::*, window::PrimaryWindow};
 use leafwing_input_manager::{prelude::*, user_input::InputKind};
 
 use crate::{
