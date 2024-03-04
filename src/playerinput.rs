@@ -1,4 +1,4 @@
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::{input::mouse, prelude::*, window::PrimaryWindow};
 use leafwing_input_manager::{prelude::*, user_input::InputKind};
 
 use crate::{
@@ -36,7 +36,10 @@ impl Plugin for PlayerInputPlugin {
 
 #[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
 pub enum CameraControl {
-    PanCam,
+    // We absolutely should not have to do this but LWIM has mouse input on a scale from 0 - 180 and virtual dpad at 0-1, so our choices are to do this or have raw-input drive an ActionStateDriver
+    // so this is a question of "Which method of violating the core concept of an input management system feels less arduous"
+    PanCamMouse,
+    PanCamDPad,
     Zoom,
 }
 
@@ -77,13 +80,19 @@ fn game_field_setup(
         .insert(InputManagerBundle::<CameraControl> {
             input_map: InputMap::default()
                 .insert(SingleAxis::mouse_wheel_y(), CameraControl::Zoom)
-                .insert(
-                    UserInput::chord([
-                        InputKind::Mouse(MouseButton::Right),
-                        InputKind::DualAxis(DualAxis::mouse_motion()),
-                    ]),
-                    CameraControl::PanCam,
-                )
+                .insert_multiple([
+                    (
+                        UserInput::chord([
+                            InputKind::Mouse(MouseButton::Middle),
+                            InputKind::DualAxis(DualAxis::mouse_motion()),
+                        ]),
+                        CameraControl::PanCamMouse,
+                    ),
+                    (
+                        VirtualDPad::wasd().inverted_x().into(),
+                        CameraControl::PanCamDPad,
+                    ),
+                ])
                 .build(),
             ..default()
         });
@@ -102,8 +111,6 @@ fn game_field_setup(
 fn zoom_camera(
     mut query: Query<(&mut OrthographicProjection, &ActionState<CameraControl>), With<MainCamera>>,
 ) {
-    
-
     let (mut camera_projection, action_state) = query.single_mut();
 
     let zoom_delta = action_state.value(CameraControl::Zoom);
@@ -123,19 +130,30 @@ fn pan_camera(
     >,
 ) {
     let (projection, mut camera_transform, action_state) = q.single_mut();
-
-    if action_state.pressed(CameraControl::PanCam) {
-        action_state
-            .action_data(CameraControl::PanCam)
-            .axis_pair
-            .map(|axis_data| {
-                let zoom_scale = projection.scale / 20.0;
-                camera_transform.translation.x +=
-                    axis_data.x() * -(CAMERA_PAN_SPEED_FACTOR * zoom_scale);
-                camera_transform.translation.y +=
-                    axis_data.y() * (CAMERA_PAN_SPEED_FACTOR * zoom_scale);
-            });
+    let (mousepan, dpadpan) = (
+        action_state.pressed(CameraControl::PanCamMouse),
+        action_state.pressed(CameraControl::PanCamDPad),
+    );
+    if !mousepan && !dpadpan {
+        return;
     }
+
+    let (zoom_scale, action_data) = if dpadpan {
+        (projection.scale * 0.5, CameraControl::PanCamDPad)
+    } else {
+        (projection.scale / 20., CameraControl::PanCamMouse)
+    };
+
+    action_state
+        .action_data(action_data)
+        .axis_pair
+        .map(|axis_data| {
+            camera_transform.translation.x +=
+                axis_data.x() * -(CAMERA_PAN_SPEED_FACTOR * zoom_scale);
+            camera_transform.translation.y +=
+                axis_data.y() * (CAMERA_PAN_SPEED_FACTOR * zoom_scale);
+        });
+
 }
 
 fn user_toggle_pause(
