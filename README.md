@@ -3,14 +3,14 @@
 A clicker inspired ant colony management "simulator."
 
 
-In the future, you will be able to find this project on [itch.io](https://irongremlin.itch.io/moar-ants)
+You can find this project on [itch.io](https://irongremlin.itch.io/moar-ants)
 
 
 ## FAQ
 
 ### What is this for?
 
-It's a game. I'm planning on selling it to real people for actual dollar bills, but probably not very many of them.
+It's a game. I'm selling it to real people for actual dollar bills, but not very many of them.
 
 ### What kind of game is it?
 
@@ -19,16 +19,19 @@ It's a very laid-back ant-hill simulator. You click buttons to help your ants de
 
 ### Can I use your or redistribute your assets or code?
 
-Investigations into a more explicitly permissive license are on-going, but for now, please consider the code and assets in this project to be read-only unless otherwise indicated in `assets/licenses_and_attributions.txt`.
-
-Less formally, I am 'cool with' some light copy+pasta and people taking inspiration from my work, I'm not 'cool with' anyone redistributing large portions of my work and claiming it as their own or profiting off of it.
+This project is licensed under the Polyform Strict license - see : https://polyformproject.org/licenses/strict/1.0.0/
 
 
-### Why would you put this on github?
+Less formally, I am 'cool with' some copy + pasta and people taking inspiration from my work, I'm not 'cool with' anyone redistributing large portions of my work, claiming it as their own, or profiting off of it.
+
+
+### Why would you put this in a public repo on Github?
 
 Game development is really hard, and I think the world needs more examples of actual projects.
 
-I understand this means anyone could, in theory, come here and build this project and walk away with a copy of my game and never pay me a dime.
+I understand this means anyone could, in theory, come here, build this project and walk away with a copy of my game and never pay me a dime.
+
+I am asking you not to do this.
 
 I hope asking people not to do this is enough, and I believe the small risk involved to me is worth the small value this adds to the world.
 
@@ -38,7 +41,7 @@ That's debatable but I'm very nearly certain at least one person out there somew
 
 ### Will you take PRs?
 
-Probably not, as I wouldn't consider it ethical to sell someone else's work without compensating them, and I have no good mechanism to do so.
+Probably not, as I wouldn't consider it ethical to sell someone else's work without compensating them, and I have neither a great mechanism nor any great interest to do so.
 
 ### Can I give you feedback on this project?
 
