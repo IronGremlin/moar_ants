@@ -217,6 +217,7 @@ impl ApplicationSettings<'_> {
             .persist()
             .expect("failed to persist user supplied settings");
     }
+    #[allow(dead_code)]
     pub fn register_introductory_help(&mut self) {
         //AFAICT this is a false positive on this lint error
         #[allow(unused_mut)]

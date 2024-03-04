@@ -1,8 +1,18 @@
+use std::time::Duration;
+
 use bevy::{ecs::system::EntityCommands, prelude::*};
 
 pub const SMALL: f32 = 12.;
 pub const MEDIUM: f32 = 16.;
 pub const LARGE: f32 = 24.;
+
+#[allow(non_snake_case)]
+pub fn GREEN() -> Color { Color::rgb_u8(106, 190, 48) }
+#[allow(non_snake_case)]
+pub fn PURPLE() -> Color { Color::rgb_u8(69, 40, 60) }
+#[allow(non_snake_case)]
+pub fn RED() -> Color { Color::rgb_u8(172, 50, 50) }
+
 
 #[derive(Default)]
 pub struct StyleBuilder {
@@ -174,4 +184,51 @@ pub fn into_pct(v: f32) -> Val {
 }
 pub fn px(v: f32) -> Val {
     Val::Px(v)
+}
+
+
+pub struct CoolDown {
+    cooling_down: bool,
+    elapsed: Timer,
+}
+impl Default for CoolDown {
+    fn default() -> Self {
+        Self {
+            cooling_down: false,
+            elapsed: Timer::from_seconds(0.25, TimerMode::Once),
+        }
+    }
+}
+impl CoolDown {
+   pub  fn cooling_down(&self) -> bool {
+        self.cooling_down
+    }
+
+    pub fn start_cooldown(&mut self) {
+        self.cooling_down = true;
+    }
+
+    pub fn handle_time(&mut self, delta: Duration) {
+        match (self.cooling_down, self.done()) {
+            (false, _) => {
+                return;
+            }
+            (true, false) => {
+                self.tick(delta);
+            }
+            (true, true) => {
+                self.clear();
+            }
+        }
+    }
+    fn done(&self) -> bool {
+        self.elapsed.finished()
+    }
+    fn tick(&mut self, delta: Duration) {
+        self.elapsed.tick(delta);
+    }
+    fn clear(&mut self) {
+        self.cooling_down = false;
+        self.elapsed.reset();
+    }
 }

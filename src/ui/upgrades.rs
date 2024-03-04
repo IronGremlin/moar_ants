@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
 use std::marker::PhantomData;
 
-use super::ui_util::{px, ProjectLocalStyle, ALL, SMALL};
+use super::ui_util::{px, ProjectLocalStyle, ALL, GREEN, SMALL};
 
 use crate::{
     ant::AntSettings,
@@ -212,7 +212,7 @@ where
 
                         ..default()
                     },
-                    background_color: Color::rgb_u8(106, 190, 48).into(),
+                    background_color: GREEN().into(),
                     z_index: ZIndex::Local(10),
                     ..default()
                 },
@@ -259,10 +259,7 @@ where
                 text: Text::from_sections([
                     TextSection::new("", TextStyle::local(SMALL, Color::BLACK)),
                     TextSection::new(" ", TextStyle::local(SMALL, Color::BLACK)),
-                    TextSection::new(
-                        "",
-                        TextStyle::local(SMALL, Color::rgb_u8(106, 190, 48).into()),
-                    ),
+                    TextSection::new("", TextStyle::local(SMALL, GREEN().into())),
                 ]),
                 ..default()
             })

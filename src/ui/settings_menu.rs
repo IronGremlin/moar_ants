@@ -4,7 +4,7 @@ use bevy::{
 
 use super::{
     menu_ui::UIAnchorNode,
-    ui_util::{into_pct, px, ProjectLocalStyle, UICommandsExt, ALL, MEDIUM},
+    ui_util::{into_pct, px, CoolDown, ProjectLocalStyle, UICommandsExt, ALL, MEDIUM},
 };
 use bevy_nine_slice_ui::{NineSliceUiMaterialBundle, NineSliceUiTexture};
 use leafwing_input_manager::{
@@ -264,8 +264,6 @@ fn instantiate_settings_menu(
     let display_settings_fullscreen_section_header = commands
         .spawn(NodeBundle {
             style: Style {
-                // width: into_pct(1.),
-                // height: into_pct(1.),
                 grid_column: GridPlacement::start(1),
                 grid_row: GridPlacement::start(1),
                 justify_content: JustifyContent::Center,
@@ -288,15 +286,15 @@ fn instantiate_settings_menu(
     commands
         .entity(display_settings_fullscreen_section_header)
         .add_child(display_settings_fullscreen_label);
-    let even_dumber_checkbox = commands.make_icon("green_check_icon.png".into());
-    commands.entity(even_dumber_checkbox).insert(Style {
+    let icon_checkbox = commands.make_icon("green_check_icon.png".into());
+    commands.entity(icon_checkbox).insert(Style {
         width: into_pct(0.5),
         height: into_pct(0.5),
         align_self: AlignSelf::Center,
         justify_self: JustifySelf::Center,
         ..default()
     });
-    let stupid_fucking_fullscreen_checkbox = commands
+    let container_for_icon_checkbox = commands
         .spawn(NodeBundle {
             style: Style {
                 grid_column: GridPlacement::start(2),
@@ -336,16 +334,13 @@ fn instantiate_settings_menu(
                     UiToggle(true),
                     Fullscreen,
                     Interaction::None,
-                    Name::new("Fucking checkbox"),
                 ))
-                .add_child(even_dumber_checkbox);
+                .add_child(icon_checkbox);
         })
         .id();
     let display_settings_resolution_section_header = commands
         .spawn(NodeBundle {
             style: Style {
-                // width: into_pct(1.),
-                // height: into_pct(1.),
                 grid_column: GridPlacement::start(1),
                 grid_row: GridPlacement::start(2),
                 justify_content: JustifyContent::Center,
@@ -404,8 +399,6 @@ fn instantiate_settings_menu(
     let audio_settings_global_section_header = commands
         .spawn(NodeBundle {
             style: Style {
-                // width: into_pct(1.),
-                // height: into_pct(1.),
                 grid_column: GridPlacement::start(1),
                 grid_row: GridPlacement::start(1),
                 border: UiRect {
@@ -429,8 +422,6 @@ fn instantiate_settings_menu(
     let audio_settings_music_section_header = commands
         .spawn(NodeBundle {
             style: Style {
-                // width: into_pct(1.),
-                // height: into_pct(1.),
                 grid_column: GridPlacement::start(1),
                 grid_row: GridPlacement::start(2),
 
@@ -455,8 +446,6 @@ fn instantiate_settings_menu(
     let audio_settings_sfx_section_header = commands
         .spawn(NodeBundle {
             style: Style {
-                // width: into_pct(1.),
-                // height: into_pct(1.),
                 grid_column: GridPlacement::start(1),
                 grid_row: GridPlacement::start(3),
                 border: UiRect::right(px(1.)),
@@ -519,7 +508,7 @@ fn instantiate_settings_menu(
     ]);
     commands.entity(display_settings_grid).push_children(&[
         display_settings_fullscreen_section_header,
-        stupid_fucking_fullscreen_checkbox,
+        container_for_icon_checkbox,
         display_settings_resolution_section_header,
         display_settings_resolution_selection,
     ]);
@@ -549,7 +538,7 @@ fn settings_menu_teardown(
     mut settings_menu_actions: ResMut<ToggleActions<SettingsMenuUIActions>>,
     mut audio_settings_actions: ResMut<ToggleActions<AudioMenuUIActions>>,
     mut display_settings_actions: ResMut<ToggleActions<DisplaySettingsMenuUIActions>>,
-    mut app_settings: ApplicationSettings
+    mut app_settings: ApplicationSettings,
 ) {
     settings_menu_actions.enabled = false;
     audio_settings_actions.enabled = false;
@@ -875,11 +864,19 @@ fn set_window_resolution(
     );
 }
 fn set_fullscreen_mode(
+    mut cooldown: Local<CoolDown>,
+    time: Res<Time>,
     q: Query<&Interaction, With<Fullscreen>>,
     mut display_settings: ResMut<DisplaySettings>,
 ) {
-    q.iter().for_each(|interaction| match interaction {
-        Interaction::Pressed => display_settings.fullscreen = !display_settings.fullscreen,
-        _ => {}
-    });
+    cooldown.handle_time(time.delta());
+    if !cooldown.cooling_down() {
+        q.iter().take(1).for_each(|interaction| match interaction {
+            Interaction::Pressed => {
+                display_settings.fullscreen = !display_settings.fullscreen;
+                cooldown.start_cooldown();
+            }
+            _ => {}
+        });
+    }
 }

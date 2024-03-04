@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, time::Duration};
+use std::marker::PhantomData;
 
 use bevy::prelude::*;
 use leafwing_input_manager::plugin::ToggleActions;
@@ -75,7 +75,7 @@ impl LaborTableDisplay for ForagerAnt {
         "nine_slice/bgW_bB_soft_corner_upper_left_trimmed_inner.png".into()
     }
     fn color() -> Color {
-        Color::rgb_u8(106, 190, 48)
+        GREEN()
     }
 
     fn name() -> String {
@@ -90,7 +90,7 @@ impl LaborTableDisplay for NursemaidAnt {
         "nine_slice/bgW_bB_soft_corner_middle_left_trimmed_inner.png".into()
     }
     fn color() -> Color {
-        Color::rgb_u8(69, 40, 60)
+        PURPLE()
     }
 
     fn name() -> String {
@@ -105,7 +105,7 @@ impl LaborTableDisplay for IdleAnt {
         "nine_slice/bgW_bB_soft_corner_lower_left_trimmed_inner.png".into()
     }
     fn color() -> Color {
-        Color::rgb_u8(172, 50, 50)
+        RED()
     }
 
     fn name() -> String {
@@ -174,10 +174,18 @@ fn init_gamefield_ui(
             ..default()
         })
         .id();
-    let food_bar_layout =
-        make_big_bar::<GamefieldUIFoodBar>(&mut commands, &asset_server, Color::rgb_u8(106, 190, 48), "food_icon.png".into());
-    let ant_bar_layout =
-        make_big_bar::<GamefieldUIAntBar>(&mut commands, &asset_server, Color::rgb_u8(99, 155, 255),"ant_icon.png".into());
+    let food_bar_layout = make_big_bar::<GamefieldUIFoodBar>(
+        &mut commands,
+        &asset_server,
+        GREEN(),
+        "food_icon.png".into(),
+    );
+    let ant_bar_layout = make_big_bar::<GamefieldUIAntBar>(
+        &mut commands,
+        &asset_server,
+        Color::rgb_u8(99, 155, 255),
+        "ant_icon.png".into(),
+    );
 
     let egg_button_layout = commands
         .spawn(NodeBundle {
@@ -491,10 +499,7 @@ fn init_gamefield_ui(
         .id();
 
     let upgrade_buttons = spawn_upgrade_buttons(&mut commands, &asset_server);
-    let menu_children = [
-        upgrade_buttons.as_slice(),
-    ]
-    .concat();
+    let menu_children = [upgrade_buttons.as_slice()].concat();
     commands.entity(anchor.0).add_child(root);
     commands.entity(root).add_child(big_bar_layout);
     commands
@@ -780,16 +785,12 @@ fn make_ant_labor_row<C: Component + Default + LaborTableDisplay>(
         labor_icon_layout,
         labor_bar_layout,
     ]);
-    commands
-        .entity(labor_label_layout)
-        .add_child(labor_label);
+    commands.entity(labor_label_layout).add_child(labor_label);
     commands.entity(labor_icon_layout).add_child(labor_icon);
     commands
         .entity(labor_bar_layout)
         .push_children(&[labor_bar_mask, labor_bar_fill]);
-    commands
-        .entity(labor_bar_mask)
-        .add_child(labor_bar_label);
+    commands.entity(labor_bar_mask).add_child(labor_bar_label);
     labor_row
 }
 
@@ -887,51 +888,5 @@ fn decrement_target_larva(
             }
             _ => {}
         });
-    }
-}
-
-struct CoolDown {
-    cooling_down: bool,
-    elapsed: Timer,
-}
-impl Default for CoolDown {
-    fn default() -> Self {
-        Self {
-            cooling_down: false,
-            elapsed: Timer::from_seconds(0.25, TimerMode::Once),
-        }
-    }
-}
-impl CoolDown {
-    fn cooling_down(&self) -> bool {
-        self.cooling_down
-    }
-
-    fn start_cooldown(&mut self) {
-        self.cooling_down = true;
-    }
-
-    fn handle_time(&mut self, delta: Duration) {
-        match (self.cooling_down, self.done()) {
-            (false, _) => {
-                return;
-            }
-            (true, false) => {
-                self.tick(delta);
-            }
-            (true, true) => {
-                self.clear();
-            }
-        }
-    }
-    fn done(&self) -> bool {
-        self.elapsed.finished()
-    }
-    fn tick(&mut self, delta: Duration) {
-        self.elapsed.tick(delta);
-    }
-    fn clear(&mut self) {
-        self.cooling_down = false;
-        self.elapsed.reset();
     }
 }
