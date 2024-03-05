@@ -718,7 +718,39 @@ fn watch_audio_bars(
             }
         });
 }
+#[cfg(target_arch = "wasm32")]
+fn make_resolution_selection_component(
+    commands: &mut Commands,
+    resolution_options: Vec<(f32, f32)>,
+    current: (f32, f32),
+) -> Entity {
+    use super::ui_util::SMALL;
 
+    let root = commands
+        .spawn(NodeBundle {
+            style: Style {
+                display: Display::Grid,
+                grid_column: GridPlacement::start(2),
+                grid_row: GridPlacement::start(2),
+                grid_template_rows: vec![GridTrack::fr(1.)],
+                border: UiRect {
+                    bottom: px(1.),
+                    right: px(1.),
+                    left: px(0.),
+                    top: px(0.),
+                },
+                ..default()
+            },
+            border_color: Color::BLACK.into(),
+            ..default()
+        })
+        .id();
+    let label = commands.make_text("Not Implemented for Web", TextStyle::local(SMALL, Color::BLACK)).id();
+    commands.entity(root).add_child(label);
+    root
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn make_resolution_selection_component(
     commands: &mut Commands,
     resolution_options: Vec<(f32, f32)>,

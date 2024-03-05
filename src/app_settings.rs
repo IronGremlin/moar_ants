@@ -283,16 +283,27 @@ fn populate_display_settings_changes(
     let targety = display_settings.resolution.1;
 
     if let Some((rx, _ry)) = screen_size {
-        let nativex = rx as f32;
-        let necessary_scale_factor = nativex as f64 / targetx as f64;
+        
+        let nativex = if cfg!(target_arch = "wasm32") {
+            // The web canvas will only take 2/3rds of what it is given, so in order to get it to render a 1280 pixel canvas, I have to lie and tell it that it has 1920 pixels to play with.
+            // May god forgive me this sin, because I certainly will not.
+            1920.
+        } else {
+            rx as f32
+        };
+
+        let necessary_scale_factor = nativex as f64 / (targetx) as f64;
+
         let ui_scale_factor = targety as f64 / 720.;
         ui_scale.0 = ui_scale_factor;
-        if necessary_scale_factor >= 1.0 && display_settings.fullscreen {
+        if necessary_scale_factor >= 1.0 && display_settings.fullscreen
+            || cfg!(target_arch = "wasm32")
+        {
             window
                 .resolution
                 .set_scale_factor_override(Some(necessary_scale_factor));
         }
-        if !display_settings.fullscreen {
+        if !display_settings.fullscreen && cfg!(not(target_arch = "wasm32")) {
             window.resolution.set_scale_factor_override(None);
         }
     }
@@ -311,8 +322,8 @@ fn populate_display_settings_changes(
 
 fn initialize_persistent_app_settings(mut commands: Commands) {
     let cfg_dir = dirs::config_dir()
-    .map(|dir| dir.join("moar_ants"))
-    .unwrap_or(Path::new("local").join("configuration"));
+        .map(|dir| dir.join("moar_ants"))
+        .unwrap_or(Path::new("local").join("configuration"));
     commands.insert_resource(
         Persistent::<UserSettings>::builder()
             .name("user settings")
