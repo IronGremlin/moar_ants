@@ -278,16 +278,27 @@ fn populate_display_settings_changes(
         .and_then(|our_window| our_window.current_monitor())
         .map(|monitor| monitor.size())
         .map(|size| (size.width, size.height));
+    let actual_scale_factor = winit_windows
+        .get_window(entity)
+        .map(|win| win.scale_factor());
 
     let targetx = display_settings.resolution.0;
     let targety = display_settings.resolution.1;
 
     if let Some((rx, _ry)) = screen_size {
-        
+
         let nativex = if cfg!(target_arch = "wasm32") {
-            // The web canvas will only take 2/3rds of what it is given, so in order to get it to render a 1280 pixel canvas, I have to lie and tell it that it has 1920 pixels to play with.
-            // May god forgive me this sin, because I certainly will not.
-            1920.
+            // Ok, so, finally figured this out - sort of.
+            // The 'scale factor' on this Window seems to be representing the scale of logical browser pixels to wininit's ideas about logcial WASM canvas pixels.
+            
+            // Asking for the physical size of the canvas gives us an answer in pixel units that the browser does not understand and that we cannot
+            // sanely map to and from with the information we have available.
+
+            // But that's OK, because we're sort of stuck rendering with the browser's idea of logical pixel size anyway.
+            // So, rather than asking for the viewport resolution and setting our scale factor accordingly, we're sort of forced to let the browser and OS dictate how we're going to scale.
+            // Because of this, we're just going to lock everything in the browser to 1280x720 - which is kind of what we're doing for the desktop client anyway, but in reverse.
+        
+            1280. * actual_scale_factor.unwrap_or(1.0) as f32
         } else {
             rx as f32
         };
